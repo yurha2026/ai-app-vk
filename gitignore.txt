@@ -1,0 +1,9 @@
+.env
+*.db
+database.db
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.vscode/
+.idea/

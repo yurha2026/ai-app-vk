@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Pro</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🤖 AI Assistant Pro</div>
+        <div id="auth-section">
+            <button id="vk-login-btn" onclick="vkLogin()">🔵 Войти ВКонтакте</button>
+        </div>
+        <div id="user-section" style="display:none;">
+            <img id="avatar-display" src="" alt="" style="display:none; border-radius: 50%; width: 48px; height: 48px; object-fit: cover;">
+            <span id="username-display" style="font-weight: 600;"></span>
+            <button onclick="logout()" class="logout-btn">Выход</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="menu-item active" onclick="setMode('text')">💬 Текст</div>
+            <div class="menu-item" onclick="setMode('image')">🎨 Изображения</div>
+            
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+            
+            <div class="balance-section">
+                <h4>Баланс (₽)</h4>
+                <div id="balance-display">0 ₽</div>
+            </div>
+            
+            <div class="credits-section">
+                <h4>Кредиты</h4>
+                <div id="credits-display">0 кр.</div>
+            </div>
+            
+            <div class="invite-section">
+                <h4>Пригласи друга</h4>
+                <button onclick="openModal()" class="primary-btn" style="width: 100%; margin-top: 15px; padding: 12px;">✉️ Пригласить друга</button>
+            </div>
+        </aside>
+
+        <main class="chat-window" id="chat-window">
+            <div class="welcome-message">
+                <h1>Добро пожаловать в AI Assistant! 👋</h1>
+                <p style="color: var(--text-secondary); font-size: 16px;">Для работы нужен вход через ВКонтакте</p>
+            </div>
+        </main>
+    </div>
+
+    <div class="input-area">
+        <textarea id="prompt-input" placeholder="Напишите ваш запрос здесь..." rows="3"></textarea>
+        <button onclick="sendMessage()" id="send-btn">✨ Отправить</button>
+    </div>
+
+    <div class="modal-overlay" id="invite-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+            <h2 class="modal-title">Пригласи друзей</h2>
+            <p class="modal-subtitle">Вы получите бонусные кредиты за каждого зарегистрированного друга!</p>
+            <div class="referral-code-box">
+                <p style="color: var(--text-secondary); margin-bottom: 5px;">Ваш код приглашения:</p>
+                <div class="referral-code" id="referral-code"></div>
+            </div>
+            <div class="action-buttons">
+                <button onclick="copyReferralLink()" class="primary-btn">Копировать ссылку</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let currentMode = 'text';
+        const API_BASE = 'https://neuro-guru-backend.onrender.com';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('session_token');
+            const user = localStorage.getItem('current_user');
+            
+            if (token && user) {
+                currentUser = JSON.parse(user);
+                await updateUI();
+                await loadHistory();
+            }
+        });
+        
+        function setMode(mode) {
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            currentMode = mode;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('prompt-input');
+            const message = input.value.trim();
+            
+            if (!currentUser || !message) {
+                alert('Сначала войдите в аккаунт!');
+                return;
+            }
+            
+            addMessageToChat('user', message);
+            input.value = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': currentUser.id
+                    },
+                    body: JSON.stringify({ prompt: message, type: currentMode })
+                });
+                
+                const result = await response.json();
+                addMessageToChat('assistant', result.response, currentMode);
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                addMessageToChat('system', 'Ошибка соединения с сервером.');
+            }
+        }
+        
+        async function vkLogin() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/vk/login`);
+                const data = await response.json();
+                window.location.href = data.login_url;
+            } catch (e) {
+                console.error('Ошибка:', e);
+                alert('Не удалось получить ссылку авторизации');
+            }
+        }
+        
+        async function updateUI() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('user-section').style.display = 'flex';
+            document.getElementById('username-display').textContent = currentUser.name;
+            
+            if (currentUser.photo) {
+                const avatar = document.getElementById('avatar-display');
+                avatar.src = currentUser.photo;
+                avatar.style.display = 'inline-block';
+            }
+            
+            document.getElementById('balance-display').textContent = `${currentUser.balance.toFixed(0)} ₽`;
+            document.getElementById('credits-display').textContent = `${currentUser.credits || 0} кр.`;
+            document.getElementById('referral-code').textContent = currentUser.referral_code || '------';
+        }
+        
+        async function loadHistory() {
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat/history/${currentUser.id}`);
+                const data = await response.json();
+                
+                data.history.forEach(msg => {
+                    addMessageToChat(msg.role, msg.content, msg.message_type);
+                });
+                
+            } catch (error) {
+                console.error('Ошибка загрузки истории:', error);
+            }
+        }
+        
+        function addMessageToChat(role, content, type = 'text') {
+            const chatWindow = document.getElementById('chat-window');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = content;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+        
+        function logout() {
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('current_user');
+            location.reload();
+        }
+        
+        function openModal() {
+            if (currentUser && currentUser.referral_code) {
+                document.getElementById('invite-modal').classList.add('active');
+            } else {
+                alert('Сначала войдите в аккаунт!');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('invite-modal').classList.remove('active');
+        }
+        
+        document.getElementById('invite-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+        
+        function copyReferralLink() {
+            const link = `${window.location.origin}?ref=${currentUser.referral_code}`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert('Ссылка скопирована!');
+            });
+        }
+    </script>
+</body>
+</html>
