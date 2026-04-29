@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sqlite3
@@ -11,6 +11,7 @@ from contextlib import contextmanager
 import uvicorn
 import uuid
 import json
+import hashlib
 import base64
 
 load_dotenv()
@@ -28,6 +29,9 @@ app.add_middleware(
 DATABASE = "database.db"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
 BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
+
+# Хранилище code_verifier для PKCE
+pkce_store = {}
 
 @contextmanager
 def get_db():
@@ -62,60 +66,80 @@ def create_tables():
     conn.commit()
     conn.close()
 
-# ============================================
-# ГЛАВНАЯ СТРАНИЦА + ОБРАБОТКА VK CALLBACK
-# ============================================
+def generate_pkce():
+    """Генерация PKCE параметров для VK ID"""
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode('ascii')).digest()
+    ).decode('ascii').rstrip('=')
+    return code_verifier, code_challenge
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    # Проверяем, есть ли код авторизации VK в URL
     code = request.query_params.get("code")
+    device_id = request.query_params.get("device_id", "")
+    state = request.query_params.get("state", "")
     
     if code:
-        # Это callback от VK — обрабатываем авторизацию
-        return await process_vk_auth(code)
+        return await process_vk_auth(code, device_id, state)
     
-    # Обычная главная страница
     return """<html><body style="font-family:Arial;text-align:center;padding:50px;">
-    <h1>🤖 Backend работает!</h1><p>База данных SQLite готова.</p></body></html>"""
+    <h1>🤖 Backend работает!</h1><p>VK ID + PKCE авторизация готова.</p></body></html>"""
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "database": "sqlite"}
-
-# ============================================
-# АВТОРИЗАЦИЯ ВКОНТАКТЕ
-# ============================================
+    return {"status": "ok", "database": "sqlite", "auth": "vk_id_pkce"}
 
 @app.get("/auth/vk/login")
 async def vk_login_url():
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
-    client_secret = os.getenv("VK_CLIENT_SECRET", "AAHXNzlDsumtOLOfMnXt")
-    
-    # ВАЖНО: redirect_uri ТОЧНО совпадает с URL в настройках VK
-    # В VK указан: https://neuro-guru-backend.onrender.com
-    # Значит redirect_uri тоже должен быть: https://neuro-guru-backend.onrender.com
     callback = BACKEND_URL
     
-    login_url = f"https://oauth.vk.com/authorize?client_id={client_id}&redirect_uri={callback}&display=page&response_type=code"
+    # Генерация PKCE
+    code_verifier, code_challenge = generate_pkce()
+    
+    # Генерация state для безопасности
+    state = secrets.token_urlsafe(32)
+    
+    # Сохраняем verifier для использования при обмене кода
+    pkce_store[state] = code_verifier
+    
+    # Формируем URL с PKCE параметрами
+    login_url = (
+        f"https://id.vk.com/authorize?"
+        f"response_type=code"
+        f"&client_id={client_id}"
+        f"&redirect_uri={callback}"
+        f"&state={state}"
+        f"&code_challenge={code_challenge}"
+        f"&code_challenge_method=S256"
+        f"&scope=vkid.personal_info"
+    )
     
     return {"login_url": login_url}
 
-async def process_vk_auth(code: str):
-    """Обработка кода авторизации от VK"""
+async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
+    """Обработка кода авторизации от VK ID с PKCE"""
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     client_secret = os.getenv("VK_CLIENT_SECRET", "AAHXNzlDsumtOLOfMnXt")
     callback = BACKEND_URL
     
+    # Получаем сохранённый code_verifier
+    code_verifier = pkce_store.pop(state, secrets.token_urlsafe(64))
+    
     try:
-        # Обмен кода на токен
+        # Обмен кода на токен через VK ID API
         token_response = requests.post(
-            "https://oauth.vk.com/access_token",
+            "https://id.vk.com/oauth2/auth",
             data={
+                "grant_type": "authorization_code",
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "redirect_uri": callback,
-                "code": code
+                "code": code,
+                "code_verifier": code_verifier,
+                "device_id": device_id,
+                "state": state
             },
             timeout=10
         )
@@ -125,35 +149,29 @@ async def process_vk_auth(code: str):
             return HTMLResponse(content=f"""
                 <html><body style="font-family:Arial;text-align:center;padding:50px;">
                 <h1>❌ Ошибка авторизации</h1>
-                <p>VK вернул ошибку: {token_data}</p>
+                <p>{json.dumps(token_data, ensure_ascii=False)}</p>
                 <a href="{FRONTEND_URL}">Вернуться на сайт</a>
                 </body></html>
             """)
         
         access_token = token_data["access_token"]
-        user_id = int(token_data["user_id"])
+        user_id = int(token_data.get("user_id", 0))
         
-        # Получение данных пользователя через VK API
-        user_response = requests.get(
-            "https://api.vk.com/method/users.get",
-            params={
-                "access_token": access_token,
-                "fields": "first_name,last_name,photo_200",
-                "v": "5.131"
-            },
+        # Получение данных пользователя через VK ID API
+        user_response = requests.post(
+            "https://id.vk.com/oauth2/user_info",
+            data={"access_token": access_token, "client_id": client_id},
             timeout=10
         )
         user_data = user_response.json()
         
-        if "response" in user_data and len(user_data["response"]) > 0:
-            user_info = user_data["response"][0]
-            first_name = user_info.get("first_name", "")
-            last_name = user_info.get("last_name", "")
-            name = f"{first_name} {last_name}".strip() or "User"
-            photo = user_info.get("photo_200", "")
-        else:
-            name = "User"
-            photo = ""
+        first_name = user_data.get("user", {}).get("first_name", "")
+        last_name = user_data.get("user", {}).get("last_name", "")
+        name = f"{first_name} {last_name}".strip() or "User"
+        photo = user_data.get("user", {}).get("avatar", "")
+        
+        if not user_id:
+            user_id = int(user_data.get("user", {}).get("user_id", 0))
         
         user_uuid = str(secrets.token_hex(16))
         
@@ -179,11 +197,8 @@ async def process_vk_auth(code: str):
                 user_db = dict(cursor.fetchone())
         
         session_token = f"{user_db['id']}_{secrets.token_hex(16)}"
-        
-        # Преобразуем данные пользователя в JSON
         user_json = json.dumps(user_db, default=str)
         
-        # Перенаправляем на фронтенд с данными
         return HTMLResponse(content=f"""
             <html>
             <head>
@@ -193,13 +208,13 @@ async def process_vk_auth(code: str):
                         localStorage.setItem('current_user', '{user_json}');
                         window.location.href = '{FRONTEND_URL}';
                     }} catch(e) {{
-                        document.body.innerHTML = '<h1>✅ Авторизация успешна!</h1><p>Имя: {name}</p><a href="{FRONTEND_URL}">Перейти на сайт</a>';
+                        document.body.innerHTML = '<h1>✅ Авторизация успешна!</h1><p>{name}</p><a href="{FRONTEND_URL}">Перейти</a>';
                     }}
                 </script>
             </head>
             <body style="font-family:Arial;text-align:center;padding:50px;">
                 <h1>✅ Авторизация успешна!</h1>
-                <p>Перенаправляем на сайт...</p>
+                <p>Перенаправляем...</p>
             </body>
             </html>
         """)
@@ -208,15 +223,10 @@ async def process_vk_auth(code: str):
         print(f"Auth error: {e}")
         return HTMLResponse(content=f"""
             <html><body style="font-family:Arial;text-align:center;padding:50px;">
-            <h1>❌ Ошибка</h1>
-            <p>{str(e)}</p>
-            <a href="{FRONTEND_URL}">Вернуться на сайт</a>
+            <h1>❌ Ошибка</h1><p>{str(e)}</p>
+            <a href="{FRONTEND_URL}">Вернуться</a>
             </body></html>
         """)
-
-# ============================================
-# ЧАТ С ИИ
-# ============================================
 
 @app.post("/chat/send")
 async def send_message(message: dict, request: Request):
@@ -230,29 +240,23 @@ async def send_message(message: dict, request: Request):
         raise HTTPException(status_code=400, detail="Empty prompt")
     
     if msg_type == "text":
-        ai_response = f"Ответ на ваш запрос: '{prompt}'. Подключите YandexGPT API для полноценных ответов."
+        ai_response = f"Ответ на: '{prompt}'. Подключите YandexGPT API для полноценных ответов."
     elif msg_type == "code":
-        ai_response = f"# Код по запросу: {prompt}\nprint('Hello World')\n# Подключите API для генерации реального кода."
+        ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Подключите API для реального кода."
     elif msg_type == "image":
-        ai_response = f"Изображение по запросу '{prompt}' будет доступно после подключения API."
+        ai_response = f"Изображение '{prompt}' — подключите Stability AI API."
     elif msg_type == "video":
-        ai_response = f"Видео по запросу '{prompt}' будет доступно после подключения API."
+        ai_response = f"Видео '{prompt}' — подключите Replicate API."
     else:
-        ai_response = "Неизвестный тип запроса."
+        ai_response = "Неизвестный тип."
     
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)",
-            (msg_id_1, user_id, prompt, msg_type)
-        )
-        cursor.execute(
-            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)",
-            (msg_id_2, user_id, ai_response, msg_type)
-        )
+        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)", (msg_id_1, user_id, prompt, msg_type))
+        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)", (msg_id_2, user_id, ai_response, msg_type))
         conn.commit()
     
     return {"response": ai_response, "type": msg_type}
@@ -261,15 +265,8 @@ async def send_message(message: dict, request: Request):
 async def get_history(user_id: str):
     with get_db() as conn:
         cursor = conn.cursor()
-        history = cursor.execute(
-            "SELECT * FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
-            (user_id,)
-        ).fetchall()
+        history = cursor.execute("SELECT * FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", (user_id,)).fetchall()
     return {"history": [dict(msg) for msg in history]}
-
-# ============================================
-# КРЕДИТЫ
-# ============================================
 
 @app.post("/credits/deduct")
 async def deduct_credits(data: dict, request: Request):
@@ -282,24 +279,17 @@ async def deduct_credits(data: dict, request: Request):
         result = cursor.fetchone()
         
         if result and float(result[0]) >= amount:
-            cursor.execute(
-                "UPDATE users SET credits = credits - ?, updated_at = datetime('now') WHERE id = ?",
-                (amount, user_id)
-            )
+            cursor.execute("UPDATE users SET credits = credits - ?, updated_at = datetime('now') WHERE id = ?", (amount, user_id))
             conn.commit()
             return {"success": True, "deducted": amount}
     
     return {"success": False, "error": "Недостаточно кредитов"}
 
-# ============================================
-# ЗАПУСК
-# ============================================
-
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 ЗАПУСК СЕРВЕРА AI ASSISTANT PRO...")
-    print(f"Backend URL: {BACKEND_URL}")
-    print(f"Frontend URL: {FRONTEND_URL}")
+    print("🚀 ЗАПУСК СЕРВЕРА AI ASSISTANT PRO (VK ID + PKCE)")
+    print(f"Backend: {BACKEND_URL}")
+    print(f"Frontend: {FRONTEND_URL}")
     print("=" * 60)
     create_tables()
     try:
@@ -308,4 +298,3 @@ if __name__ == "__main__":
         print(f"❌ ОШИБКА: {e}")
         import traceback
         traceback.print_exc()
-        input("\nНажми Enter...")
