@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sqlite3
@@ -10,6 +10,8 @@ import string
 from contextlib import contextmanager
 import uvicorn
 import uuid
+import json
+import base64
 
 load_dotenv()
 
@@ -24,6 +26,8 @@ app.add_middleware(
 )
 
 DATABASE = "database.db"
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
+BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
 
 @contextmanager
 def get_db():
@@ -39,27 +43,39 @@ def create_tables():
     cursor = conn.cursor()
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY, vk_id INTEGER UNIQUE, email TEXT, name TEXT, 
-        photo TEXT, balance REAL DEFAULT 0.0, credits INTEGER DEFAULT 3, 
-        subscription_status TEXT DEFAULT 'free', referral_code TEXT, 
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        id TEXT PRIMARY KEY, vk_id INTEGER UNIQUE, email TEXT, name TEXT,
+        photo TEXT, balance REAL DEFAULT 0.0, credits INTEGER DEFAULT 3,
+        subscription_status TEXT DEFAULT 'free', referral_code TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history (
-        id TEXT PRIMARY KEY, user_id TEXT, role TEXT, 
-        content TEXT, message_type TEXT, 
+        id TEXT PRIMARY KEY, user_id TEXT, role TEXT,
+        content TEXT, message_type TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS referrals (
-        id TEXT PRIMARY KEY, referrer_id TEXT, referee_id TEXT, 
-        reward_amount REAL DEFAULT 0.0, status TEXT DEFAULT 'pending', 
+        id TEXT PRIMARY KEY, referrer_id TEXT, referee_id TEXT,
+        reward_amount REAL DEFAULT 0.0, status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     conn.commit()
     conn.close()
 
+# ============================================
+# ГЛАВНАЯ СТРАНИЦА + ОБРАБОТКА VK CALLBACK
+# ============================================
+
 @app.get("/", response_class=HTMLResponse)
-async def homepage():
+async def homepage(request: Request):
+    # Проверяем, есть ли код авторизации VK в URL
+    code = request.query_params.get("code")
+    
+    if code:
+        # Это callback от VK — обрабатываем авторизацию
+        return await process_vk_auth(code)
+    
+    # Обычная главная страница
     return """<html><body style="font-family:Arial;text-align:center;padding:50px;">
     <h1>🤖 Backend работает!</h1><p>База данных SQLite готова.</p></body></html>"""
 
@@ -68,24 +84,27 @@ async def health():
     return {"status": "ok", "database": "sqlite"}
 
 # ============================================
-# АВТОРИЗАЦИЯ ВКОНТАКТЕ (ИСПРАВЛЕНА!)
+# АВТОРИЗАЦИЯ ВКОНТАКТЕ
 # ============================================
 
 @app.get("/auth/vk/login")
 async def vk_login_url():
     client_id = os.getenv("VK_CLIENT_ID", "54562656")
-    callback = os.getenv("VK_CALLBACK_URL", "https://neuro-guru-backend.onrender.com/auth/vk/callback")
     
-    # БЕЗ SCOPE — мини-приложения не поддерживают его
+    # ВАЖНО: redirect_uri ТОЧНО совпадает с URL в настройках VK
+    # В VK указан: https://neuro-guru-backend.onrender.com
+    # Значит redirect_uri тоже должен быть: https://neuro-guru-backend.onrender.com
+    callback = BACKEND_URL
+    
     login_url = f"https://oauth.vk.com/authorize?client_id={client_id}&redirect_uri={callback}&display=page&response_type=code"
     
     return {"login_url": login_url}
 
-@app.get("/auth/vk/callback")
-async def vk_callback(code: str):
+async def process_vk_auth(code: str):
+    """Обработка кода авторизации от VK"""
     client_id = os.getenv("VK_CLIENT_ID", "54562656")
     client_secret = os.getenv("VK_CLIENT_SECRET", "TO2ZBwRkucVuTugyW2z8")
-    callback = os.getenv("VK_CALLBACK_URL", "https://neuro-guru-backend.onrender.com/auth/vk/callback")
+    callback = BACKEND_URL
     
     try:
         # Обмен кода на токен
@@ -102,12 +121,18 @@ async def vk_callback(code: str):
         token_data = token_response.json()
         
         if "access_token" not in token_data:
-            raise HTTPException(status_code=400, detail=f"VK Token Error: {token_data}")
+            return HTMLResponse(content=f"""
+                <html><body style="font-family:Arial;text-align:center;padding:50px;">
+                <h1>❌ Ошибка авторизации</h1>
+                <p>VK вернул ошибку: {token_data}</p>
+                <a href="{FRONTEND_URL}">Вернуться на сайт</a>
+                </body></html>
+            """)
         
         access_token = token_data["access_token"]
         user_id = int(token_data["user_id"])
         
-        # Получение данных пользователя через API VK
+        # Получение данных пользователя через VK API
         user_response = requests.get(
             "https://api.vk.com/method/users.get",
             params={
@@ -136,7 +161,10 @@ async def vk_callback(code: str):
             existing = cursor.execute("SELECT * FROM users WHERE vk_id = ?", (user_id,)).fetchone()
             
             if existing:
-                cursor.execute("UPDATE users SET updated_at = datetime('now'), photo = ? WHERE id = ?", (photo, existing['id']))
+                cursor.execute(
+                    "UPDATE users SET updated_at = datetime('now'), photo = ? WHERE id = ?",
+                    (photo, existing['id'])
+                )
                 conn.commit()
                 user_db = dict(existing)
             else:
@@ -151,34 +179,39 @@ async def vk_callback(code: str):
         
         session_token = f"{user_db['id']}_{secrets.token_hex(16)}"
         
-        # Перенаправляем пользователя на фронтенд с данными
-        frontend_url = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
-        
-        import json
-        import base64
+        # Преобразуем данные пользователя в JSON
         user_json = json.dumps(user_db, default=str)
-        user_b64 = base64.urlsafe_b64encode(user_json.encode()).decode()
         
-        redirect_url = f"{frontend_url}?token={session_token}&user={user_b64}"
-        
+        # Перенаправляем на фронтенд с данными
         return HTMLResponse(content=f"""
             <html>
             <head>
                 <script>
-                    localStorage.setItem('session_token', '{session_token}');
-                    localStorage.setItem('current_user', '{user_json}');
-                    window.location.href = '{frontend_url}';
+                    try {{
+                        localStorage.setItem('session_token', '{session_token}');
+                        localStorage.setItem('current_user', '{user_json}');
+                        window.location.href = '{FRONTEND_URL}';
+                    }} catch(e) {{
+                        document.body.innerHTML = '<h1>✅ Авторизация успешна!</h1><p>Имя: {name}</p><a href="{FRONTEND_URL}">Перейти на сайт</a>';
+                    }}
                 </script>
             </head>
-            <body>
-                <p>Авторизация успешна! Перенаправляем...</p>
+            <body style="font-family:Arial;text-align:center;padding:50px;">
+                <h1>✅ Авторизация успешна!</h1>
+                <p>Перенаправляем на сайт...</p>
             </body>
             </html>
         """)
         
     except Exception as e:
         print(f"Auth error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return HTMLResponse(content=f"""
+            <html><body style="font-family:Arial;text-align:center;padding:50px;">
+            <h1>❌ Ошибка</h1>
+            <p>{str(e)}</p>
+            <a href="{FRONTEND_URL}">Вернуться на сайт</a>
+            </body></html>
+        """)
 
 # ============================================
 # ЧАТ С ИИ
@@ -195,19 +228,17 @@ async def send_message(message: dict, request: Request):
     if not prompt:
         raise HTTPException(status_code=400, detail="Empty prompt")
     
-    # Ответ в зависимости от типа запроса
     if msg_type == "text":
         ai_response = f"Ответ на ваш запрос: '{prompt}'. Подключите YandexGPT API для полноценных ответов."
     elif msg_type == "code":
-        ai_response = f"# Код по запросу: {prompt}\nprint('Hello World')\n# Подключите YandexGPT API для генерации реального кода."
+        ai_response = f"# Код по запросу: {prompt}\nprint('Hello World')\n# Подключите API для генерации реального кода."
     elif msg_type == "image":
-        ai_response = f"Изображение по запросу '{prompt}' будет доступно после подключения Stability AI API."
+        ai_response = f"Изображение по запросу '{prompt}' будет доступно после подключения API."
     elif msg_type == "video":
-        ai_response = f"Видео по запросу '{prompt}' будет доступно после подключения Replicate API."
+        ai_response = f"Видео по запросу '{prompt}' будет доступно после подключения API."
     else:
         ai_response = "Неизвестный тип запроса."
     
-    # Сохранение в историю
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     
@@ -266,12 +297,14 @@ async def deduct_credits(data: dict, request: Request):
 if __name__ == "__main__":
     print("=" * 60)
     print("🚀 ЗАПУСК СЕРВЕРА AI ASSISTANT PRO...")
+    print(f"Backend URL: {BACKEND_URL}")
+    print(f"Frontend URL: {FRONTEND_URL}")
     print("=" * 60)
     create_tables()
     try:
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        print(f"❌ ОШИБКА: {e}")
         import traceback
         traceback.print_exc()
-        input("\nНажми Enter для выхода...")
+        input("\nНажми Enter...")
