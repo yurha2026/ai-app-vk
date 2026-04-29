@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Assistant Pro — Текст, Код, Картинки, Видео</title>
+    <title>AI Assistant Pro</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,43 +42,40 @@
             <div class="credits-section">
                 <h4>Кредиты</h4>
                 <div id="credits-display">3 кр.</div>
-                <div class="usage-stats" id="usage-display">
-                    Использовано сегодня: 0/20
-                </div>
                 <div style="margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
                     💡 Текст: 1 кр | Код: 2 кр | Картинка: 3 кр | Видео: 30 кр
                 </div>
             </div>
             
             <div class="pricing-section">
-                <h4 style="margin-bottom: 10px;">Покупка кредитов</h4>
+                <h4 style="margin-bottom: 15px; text-align: center;">Покупка кредитов</h4>
                 
-                <div class="price-package popular" onclick="selectPackage('starter', 199)">
-                    <div class="package-name"><span>Starter</span><span>🌟</span></div>
+                <div class="price-card popular">
+                    <div class="package-name">Starter <span>🌟</span></div>
                     <div class="package-price">199 ₽</div>
                     <div class="package-credits">150 кредитов</div>
-                    <button class="package-btn">Купить</button>
+                    <button class="package-btn" onclick="selectPackage('starter', 199)">Купить</button>
                 </div>
                 
-                <div class="price-package popular" onclick="selectPackage('professional', 499)">
-                    <div class="package-name"><span>Professional</span><span>⚡️</span></div>
+                <div class="price-card popular">
+                    <div class="package-name">Professional <span>⚡️</span></div>
                     <div class="package-price">499 ₽</div>
                     <div class="package-credits">450 кредитов (-10%)</div>
-                    <button class="package-btn">Купить</button>
+                    <button class="package-btn" onclick="selectPackage('professional', 499)">Купить</button>
                 </div>
                 
-                <div class="price-package" onclick="selectPackage('business', 999)">
-                    <div class="package-name"><span>Business</span><span>🏢</span></div>
+                <div class="price-card">
+                    <div class="package-name">Business <span>🏢</span></div>
                     <div class="package-price">999 ₽</div>
                     <div class="package-credits">1100 кредитов (-20%)</div>
-                    <button class="package-btn">Купить</button>
+                    <button class="package-btn" onclick="selectPackage('business', 999)">Купить</button>
                 </div>
                 
-                <div class="price-package" onclick="selectPackage('unlimited', 2999)">
-                    <div class="package-name"><span>Unlimited</span><span>🚀</span></div>
+                <div class="price-card">
+                    <div class="package-name">Unlimited <span>🚀</span></div>
                     <div class="package-price">2999 ₽</div>
                     <div class="package-credits">3500 кредитов (-30%)</div>
-                    <button class="package-btn">Купить</button>
+                    <button class="package-btn" onclick="selectPackage('unlimited', 2999)">Купить</button>
                 </div>
             </div>
             
@@ -220,7 +217,6 @@
                 await updateUI();
                 await loadHistory();
             } else {
-                // Первые 3 кредита для новых пользователей
                 showWelcomeMessage();
             }
         });
