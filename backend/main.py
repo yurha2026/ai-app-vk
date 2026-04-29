@@ -89,7 +89,8 @@ async def health():
 
 @app.get("/auth/vk/login")
 async def vk_login_url():
-    client_id = os.getenv("VK_CLIENT_ID", "54562656")
+    client_id = os.getenv("VK_CLIENT_ID", "54571690")
+    client_secret = os.getenv("VK_CLIENT_SECRET", "AAHXNzlDsumtOLOfMnXt")
     
     # ВАЖНО: redirect_uri ТОЧНО совпадает с URL в настройках VK
     # В VK указан: https://neuro-guru-backend.onrender.com
@@ -102,8 +103,8 @@ async def vk_login_url():
 
 async def process_vk_auth(code: str):
     """Обработка кода авторизации от VK"""
-    client_id = os.getenv("VK_CLIENT_ID", "54562656")
-    client_secret = os.getenv("VK_CLIENT_SECRET", "TO2ZBwRkucVuTugyW2z8")
+    client_id = os.getenv("VK_CLIENT_ID", "54571690")
+    client_secret = os.getenv("VK_CLIENT_SECRET", "AAHXNzlDsumtOLOfMnXt")
     callback = BACKEND_URL
     
     try:
