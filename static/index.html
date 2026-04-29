@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Assistant Pro</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -30,9 +28,9 @@
             <div class="menu-item active" onclick="setMode('text')">💬 Текст</div>
             <div class="menu-item" onclick="setMode('code')">📝 Код</div>
             <div class="menu-item" onclick="setMode('image')">🎨 Изображения</div>
-            <div class="menu-item" onclick="setMode('video')" style="border-left: 4px solid #ef4444;">🎬 Видео</div>
+            <div class="menu-item video-item" onclick="setMode('video')">🎬 Видео</div>
             
-            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 12px 0;">
             
             <div class="balance-section">
                 <h4>Баланс (₽)</h4>
@@ -42,56 +40,59 @@
             <div class="credits-section">
                 <h4>Кредиты</h4>
                 <div id="credits-display">3 кр.</div>
-                <div style="margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
-                    💡 Текст: 1 кр | Код: 2 кр | Картинка: 3 кр | Видео: 30 кр
+                <div style="margin-top: 8px; font-size: 10px; color: var(--text-secondary);">
+                    💡 Текст: 1 | Код: 2 | Картинка: 3 | Видео: 30
                 </div>
             </div>
             
+            <!-- Компактные тарифы 2x2 -->
             <div class="pricing-section">
-                <h4 style="margin-bottom: 15px; text-align: center;">Покупка кредитов</h4>
+                <h4 style="margin-bottom: 10px; text-align: center;">Покупка кредитов</h4>
                 
-                <div class="price-card popular">
-                    <div class="package-name">Starter <span>🌟</span></div>
-                    <div class="package-price">199 ₽</div>
-                    <div class="package-credits">150 кредитов</div>
-                    <button class="package-btn" onclick="selectPackage('starter', 199)">Купить</button>
-                </div>
-                
-                <div class="price-card popular">
-                    <div class="package-name">Professional <span>⚡️</span></div>
-                    <div class="package-price">499 ₽</div>
-                    <div class="package-credits">450 кредитов (-10%)</div>
-                    <button class="package-btn" onclick="selectPackage('professional', 499)">Купить</button>
-                </div>
-                
-                <div class="price-card">
-                    <div class="package-name">Business <span>🏢</span></div>
-                    <div class="package-price">999 ₽</div>
-                    <div class="package-credits">1100 кредитов (-20%)</div>
-                    <button class="package-btn" onclick="selectPackage('business', 999)">Купить</button>
-                </div>
-                
-                <div class="price-card">
-                    <div class="package-name">Unlimited <span>🚀</span></div>
-                    <div class="package-price">2999 ₽</div>
-                    <div class="package-credits">3500 кредитов (-30%)</div>
-                    <button class="package-btn" onclick="selectPackage('unlimited', 2999)">Купить</button>
+                <div class="pricing-grid">
+                    <div class="price-mini popular" onclick="selectPackage('starter', 199)">
+                        <div class="mini-name">🌟 Starter</div>
+                        <div class="mini-price">199 ₽</div>
+                        <div class="mini-credits">150 кр.</div>
+                        <button class="mini-btn">Купить</button>
+                    </div>
+                    
+                    <div class="price-mini popular" onclick="selectPackage('professional', 499)">
+                        <div class="mini-name">⚡ Pro</div>
+                        <div class="mini-price">499 ₽</div>
+                        <div class="mini-credits">450 кр. <small>-10%</small></div>
+                        <button class="mini-btn">Купить</button>
+                    </div>
+                    
+                    <div class="price-mini" onclick="selectPackage('business', 999)">
+                        <div class="mini-name">🏢 Business</div>
+                        <div class="mini-price">999 ₽</div>
+                        <div class="mini-credits">1100 кр. <small>-20%</small></div>
+                        <button class="mini-btn">Купить</button>
+                    </div>
+                    
+                    <div class="price-mini" onclick="selectPackage('unlimited', 2999)">
+                        <div class="mini-name">🚀 Unlimited</div>
+                        <div class="mini-price">2999 ₽</div>
+                        <div class="mini-credits">3500 кр. <small>-30%</small></div>
+                        <button class="mini-btn">Купить</button>
+                    </div>
                 </div>
             </div>
             
             <div class="invite-section">
                 <h4>Пригласи друга</h4>
-                <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                <p style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
                     Получи бонус за каждого друга!
                 </p>
-                <button onclick="openModal()" class="primary-btn" style="width: 100%; margin-top: 15px; padding: 12px;">
+                <button onclick="openModal()" class="primary-btn" style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;">
                     ✉️ Пригласить друга
                 </button>
             </div>
             
             <div class="update-info-box">
-                <h4 style="color: #667eea; margin-bottom: 8px;">📌 Скоро обновление!</h4>
-                <p style="font-size: 12px; color: var(--text-secondary);">
+                <h4 style="color: #667eea; margin-bottom: 6px;">📌 Скоро обновление!</h4>
+                <p style="font-size: 11px; color: var(--text-secondary);">
                     В следующем обновлении вы сможете получать деньги за рефералов и выводить их на свою карту.
                 </p>
             </div>
@@ -112,7 +113,7 @@
     <div class="input-area">
         <textarea 
             id="prompt-input" 
-            placeholder="Напишите ваш запрос здесь... Для видео опишите подробно: стиль, действие, камера, длительность."
+            placeholder="Напишите ваш запрос здесь... Для видео опишите подробно: стиль, действие, камера."
             rows="4"
             style="min-height: 100px;"
         ></textarea>
@@ -132,80 +133,81 @@
             <div class="action-buttons">
                 <button onclick="copyReferralLink()" class="primary-btn">Копировать ссылку</button>
             </div>
+            <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f59e0b10 0%, #d9770610 100%); border-radius: 12px; border: 1px solid #f59e0b;">
+                <p style="font-size: 12px; color: #d97706; font-weight: 600;">🔮 Близится обновление!</p>
+                <p style="font-size: 11px; color: var(--text-primary);">
+                    Скоро вы сможете получать деньги за рефералов и выводить их на банковскую карту!
+                </p>
+            </div>
         </div>
     </div>
 
     <!-- Модальное окно оплаты -->
     <div class="modal-overlay" id="payment-modal">
-        <div class="modal-content payment-modal-content">
+        <div class="modal-content">
             <button class="close-modal" onclick="closePaymentModal()">&times;</button>
             <h2 class="modal-title">Оплата пакета</h2>
             <p class="modal-subtitle" id="payment-summary"></p>
-            <button class="primary-btn" style="width: 100%; margin-top: 20px;" onclick="processPayment()">
+            <div style="padding: 15px; background: linear-gradient(135deg, #10b98110 0%, #05966910 100%); border-radius: 12px; border: 1px solid #10b981; margin-bottom: 20px;">
+                <p style="font-size: 13px; color: #059669; font-weight: 600;">⚙️ Как это работает?</p>
+                <p style="font-size: 12px; color: var(--text-secondary);">
+                    После оплаты кредиты придут автоматически в течение 1 минуты.
+                </p>
+            </div>
+            <button class="primary-btn" style="width: 100%;" onclick="processPayment()">
                 Перейти к оплате
             </button>
         </div>
     </div>
 
     <!-- Подвал сайта для ЮKassa -->
-    <footer class="site-footer" style="background: rgba(255,255,255,0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 2px solid #e2e8f0;">
+    <footer style="background: rgba(255,255,255,0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 2px solid #e2e8f0;">
         <div style="max-width: 900px; margin: 0 auto;">
-            <div style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%); border-radius: 16px; border: 2px solid #e2e8f0;">
-                <h4 style="color: #667eea; margin-bottom: 15px; font-size: 16px;">💡 Как работает оплата?</h4>
-                <p style="font-size: 14px; color: #4a5568; line-height: 1.6;">
-                    Вы покупаете <strong>кредиты</strong> для генерации контента нейросетями.<br><br>
-                    <strong>Цифровой товар:</strong> после успешной оплаты кредиты автоматически начисляются на ваш счёт в течение 1 минуты.<br>
-                    <strong>Как получить:</strong> Зайдите в личный кабинет → раздел "Кредиты" → баланс обновится автоматически.
+            <div style="margin-bottom: 25px; padding: 20px; background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%); border-radius: 16px; border: 2px solid #e2e8f0;">
+                <h4 style="color: #667eea; margin-bottom: 10px; font-size: 15px;">💡 Как работает оплата?</h4>
+                <p style="font-size: 13px; color: #4a5568; line-height: 1.6;">
+                    Вы покупаете <strong>кредиты</strong> для генерации контента нейросетями.<br>
+                    После оплаты кредиты автоматически начисляются на ваш счёт.
                 </p>
             </div>
             
-            <div style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #10b98110 0%, #05966910 100%); border-radius: 16px; border: 2px dashed #10b981;">
-                <h4 style="color: #059669; margin-bottom: 10px; font-size: 16px;">📦 Доставка цифрового товара</h4>
-                <ul style="text-align: left; display: inline-block; font-size: 14px; color: #4a5568;">
-                    <li>✅ Автоматическое начисление кредитов после оплаты</li>
-                    <li>✅ Мгновенный доступ к функционалу сервиса</li>
-                    <li>✅ История покупок сохраняется в личном кабинете</li>
-                    <li>✅ Техподдержка 24/7 при проблемах с оплатой</li>
+            <div style="margin-bottom: 25px; padding: 20px; background: linear-gradient(135deg, #10b98110 0%, #05966910 100%); border-radius: 16px; border: 2px dashed #10b981;">
+                <h4 style="color: #059669; margin-bottom: 8px; font-size: 15px;">📦 Доставка цифрового товара</h4>
+                <ul style="text-align: left; display: inline-block; font-size: 13px; color: #4a5568;">
+                    <li>✅ Автоматическое начисление кредитов</li>
+                    <li>✅ Мгновенный доступ к сервису</li>
+                    <li>✅ История покупок в личном кабинете</li>
+                    <li>✅ Техподдержка 24/7</li>
                 </ul>
             </div>
             
-            <div style="margin-bottom: 30px; padding: 25px; background: linear-gradient(135deg, #f59e0b10 0%, #d9770610 100%); border-radius: 16px; border: 2px solid #f59e0b;">
-                <h4 style="color: #d97706; margin-bottom: 15px; font-size: 16px;">👤 Контакты исполнителя услуг</h4>
-                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 20px;">
-                    <div>
-                        <strong>Email:</strong><br>support.neuro.guru@gmail.com
-                    </div>
-                    <div>
-                        <strong>Режим работы:</strong><br>24/7 без выходных
-                    </div>
+            <div style="margin-bottom: 25px; padding: 20px; background: linear-gradient(135deg, #f59e0b10 0%, #d9770610 100%); border-radius: 16px; border: 2px solid #f59e0b;">
+                <h4 style="color: #d97706; margin-bottom: 10px; font-size: 15px;">👤 Контакты</h4>
+                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <div><strong>Email:</strong><br>support@neuro-guru.ru</div>
+                    <div><strong>Режим работы:</strong><br>24/7</div>
                 </div>
-                <div style="background: white; padding: 15px; border-radius: 8px; display: inline-block;">
+                <div style="background: white; padding: 12px; border-radius: 8px; display: inline-block;">
                     <strong>Плательщик НПД (Самозанятый):</strong><br>
                     [Юрченко Андрей Андреевич]<br>
                     ИНН: [672507151308]
                 </div>
             </div>
             
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                <div style="font-size: 13px; color: #718096; margin-bottom: 15px;">
-                    <a href="/offer.html" style="color: #667eea; text-decoration: none; margin: 0 10px;">📄 Публичная оферта</a> |
-                    <a href="/privacy.html" style="color: #667eea; text-decoration: none; margin: 0 10px;">🔒 Политика конфиденциальности</a>
-                </div>
-                
-                <div style="font-size: 12px; color: #718096; margin-top: 20px;">
-                    © 2025 AI Assistant Pro. Все права защищены.
-                </div>
+            <div style="font-size: 12px; color: #718096;">
+                <a href="/offer.html" style="color: #667eea; text-decoration: none; margin: 0 8px;">📄 Публичная оферта</a> |
+                <a href="/privacy.html" style="color: #667eea; text-decoration: none; margin: 0 8px;">🔒 Политика конфиденциальности</a>
+            </div>
+            
+            <div style="font-size: 11px; color: #718096; margin-top: 15px;">
+                © 2025 AI Assistant Pro. Все права защищены.
             </div>
         </div>
     </footer>
 
-    <script src="/static/js/app.js"></script>
     <script>
-        // Глобальные переменные
         let currentUser = null;
         let currentMode = 'text';
-        
-        // ВАЖНО: УКАЖИ ПРАВИЛЬНЫЙ URL ОТ RENDER!
         const API_BASE = 'https://neuro-guru-backend.onrender.com';
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -216,13 +218,11 @@
                 currentUser = JSON.parse(user);
                 await updateUI();
                 await loadHistory();
-            } else {
-                showWelcomeMessage();
             }
         });
         
         function setMode(mode) {
-            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.menu-item, .video-item').forEach(item => item.classList.remove('active'));
             event.target.classList.add('active');
             currentMode = mode;
         }
@@ -240,6 +240,7 @@
             const credits = parseFloat(currentUser.credits || 0);
             
             if (credits < creditsNeeded) {
+                alert('Недостаточно кредитов! Купите пакет.');
                 openPaymentModal();
                 return;
             }
@@ -259,7 +260,6 @@
                 
                 const result = await response.json();
                 addMessageToChat('assistant', result.response, currentMode);
-                
                 await deductCredits(creditsNeeded);
                 
             } catch (error) {
@@ -300,11 +300,11 @@
                 avatar.style.display = 'inline-block';
             }
             
-            const balanceEl = document.getElementById('balance-display');
-            const creditsEl = document.getElementById('credits-display');
-            balanceEl.textContent = `${currentUser.balance.toFixed(0)} ₽`;
-            creditsEl.textContent = `${currentUser.credits || 3} кр.`;
-            document.getElementById('referral-code').textContent = currentUser.referral_code || '------';
+            document.getElementById('balance-display').textContent = `${(currentUser.balance || 0).toFixed(0)} ₽`;
+            document.getElementById('credits-display').textContent = `${currentUser.credits || 3} кр.`;
+            
+            const refCode = document.getElementById('referral-code');
+            if (refCode) refCode.textContent = currentUser.referral_code || '------';
         }
         
         async function loadHistory() {
@@ -314,11 +314,7 @@
             try {
                 const response = await fetch(`${API_BASE}/chat/history/${currentUser.id}`);
                 const data = await response.json();
-                
-                data.history.forEach(msg => {
-                    addMessageToChat(msg.role, msg.content, msg.message_type);
-                });
-                
+                data.history.forEach(msg => addMessageToChat(msg.role, msg.content, msg.message_type));
             } catch (error) {
                 console.error('Ошибка загрузки истории:', error);
             }
@@ -332,26 +328,21 @@
             try {
                 await fetch(`${API_BASE}/credits/deduct`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-User-ID': currentUser.id
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-User-ID': currentUser.id },
                     body: JSON.stringify({ amount: amount })
                 });
-            } catch (e) {
-                console.error('Ошибка списания:', e);
-            }
+            } catch (e) { console.error('Ошибка списания:', e); }
         }
         
-        function addMessageToChat(role, content, type = 'text') {
+        function addMessageToChat(role, content, type) {
             const chatWindow = document.getElementById('chat-window');
             const div = document.createElement('div');
             div.className = `message ${role}`;
             
             if (type === 'image') {
-                div.innerHTML = `<p><strong>Изображение:</strong></p><img src="${content}" style="max-width: 100%; border-radius: 12px;">`;
+                div.innerHTML = `<p><strong>Изображение:</strong></p><img src="${content}" style="max-width:100%;border-radius:12px;">`;
             } else if (type === 'video') {
-                div.innerHTML = `<p><strong>Видео:</strong></p><video controls width="100%" style="border-radius: 12px;"><source src="${content}" type="video/mp4"></video>`;
+                div.innerHTML = `<p><strong>Видео:</strong></p><video controls width="100%" style="border-radius:12px;"><source src="${content}" type="video/mp4"></video>`;
             } else {
                 div.innerHTML = `<pre>${content}</pre>`;
             }
@@ -366,28 +357,13 @@
             location.reload();
         }
         
-        function showWelcomeMessage() {
-            const chatWindow = document.getElementById('chat-window');
-            chatWindow.innerHTML += `
-                <div class="message system">
-                    🎉 Добро пожаловать!<br>
-                    Вы получили 3 бесплатных кредита для тестирования.<br>
-                    Войдите через ВКонтакте, чтобы продолжить.
-                </div>
-            `;
-        }
-        
         function openModal() {
             if (currentUser && currentUser.referral_code) {
                 document.getElementById('invite-modal').classList.add('active');
-            } else {
-                alert('Сначала войдите в аккаунт!');
-            }
+            } else { alert('Сначала войдите в аккаунт!'); }
         }
         
-        function closeModal() {
-            document.getElementById('invite-modal').classList.remove('active');
-        }
+        function closeModal() { document.getElementById('invite-modal').classList.remove('active'); }
         
         document.getElementById('invite-modal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
@@ -395,34 +371,22 @@
         
         function copyReferralLink() {
             const link = `${window.location.origin}?ref=${currentUser.referral_code}`;
-            navigator.clipboard.writeText(link).then(() => {
-                alert('Ссылка скопирована!');
-            });
+            navigator.clipboard.writeText(link).then(() => alert('Ссылка скопирована!'));
         }
         
         function selectPackage(pkgName, price) {
-            const packageNames = {
+            const names = {
                 'starter': 'Starter (150 кредитов)',
                 'professional': 'Professional (450 кредитов)',
                 'business': 'Business (1100 кредитов)',
                 'unlimited': 'Unlimited (3500 кредитов)'
             };
-            
-            document.getElementById('payment-summary').innerHTML = `
-                Вы выбрали пакет: <strong>${packageNames[pkgName]}</strong><br>
-                Цена: <strong>${price} ₽</strong>
-            `;
-            
+            document.getElementById('payment-summary').innerHTML = `Пакет: <strong>${names[pkgName]}</strong><br>Цена: <strong>${price} ₽</strong>`;
             openPaymentModal();
         }
         
-        function openPaymentModal() {
-            document.getElementById('payment-modal').classList.add('active');
-        }
-        
-        function closePaymentModal() {
-            document.getElementById('payment-modal').classList.remove('active');
-        }
+        function openPaymentModal() { document.getElementById('payment-modal').classList.add('active'); }
+        function closePaymentModal() { document.getElementById('payment-modal').classList.remove('active'); }
         
         document.getElementById('payment-modal').addEventListener('click', function(e) {
             if (e.target === this) closePaymentModal();
@@ -433,7 +397,6 @@
             closePaymentModal();
         }
         
-        // Ctrl+Enter для отправки
         document.getElementById('prompt-input').addEventListener('keypress', function(e) {
             if (e.ctrlKey && e.key === 'Enter') sendMessage();
         });
