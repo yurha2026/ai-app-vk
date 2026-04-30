@@ -239,24 +239,91 @@ async def send_message(message: dict, request: Request):
     if not prompt:
         raise HTTPException(status_code=400, detail="Empty prompt")
     
-    if msg_type == "text":
-        ai_response = f"Ответ на: '{prompt}'. Подключите YandexGPT API для полноценных ответов."
-    elif msg_type == "code":
-        ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Подключите API для реального кода."
-    elif msg_type == "image":
-        ai_response = f"Изображение '{prompt}' — подключите Stability AI API."
-    elif msg_type == "video":
-        ai_response = f"Видео '{prompt}' — подключите Replicate API."
-    else:
-        ai_response = "Неизвестный тип."
+    hf_token = os.getenv("HF_TOKEN", "")
+    ai_response = ""
     
+    if msg_type in ["text", "code"] and hf_token:
+        try:
+            # Генерация текста/кода через Hugging Face
+            if msg_type == "code":
+                formatted_prompt = f"Write code for: {prompt}. Provide only the code without explanations."
+            else:
+                formatted_prompt = prompt
+            
+            hf_response = requests.post(
+                "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                json={
+                    "inputs": f"[INST] {formatted_prompt} [/INST]",
+                    "parameters": {
+                        "max_new_tokens": 512,
+                        "temperature": 0.7,
+                        "return_full_text": False
+                    }
+                },
+                timeout=30
+            )
+            
+            if hf_response.status_code == 200:
+                result = hf_response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    ai_response = result[0].get("generated_text", "Ошибка генерации")
+                else:
+                    ai_response = str(result)
+            else:
+                ai_response = f"Ошибка API: {hf_response.status_code}. Модель загружается, попробуйте через 30 секунд."
+                
+        except Exception as e:
+            print(f"HF Error: {e}")
+            ai_response = f"Ошибка генерации: {str(e)}"
+    
+    elif msg_type == "image" and hf_token:
+        try:
+            # Генерация изображений через Hugging Face
+            hf_response = requests.post(
+                "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                json={"inputs": prompt},
+                timeout=60
+            )
+            
+            if hf_response.status_code == 200:
+                # Сохраняем изображение и возвращаем URL
+                ai_response = "Изображение сгенерировано! (Для отображения нужно настроить хранилище файлов)"
+            else:
+                ai_response = f"Ошибка генерации: {hf_response.status_code}. Модель загружается."
+                
+        except Exception as e:
+            ai_response = f"Ошибка: {str(e)}"
+    
+    elif msg_type == "video":
+        ai_response = "Генерация видео будет доступна в следующем обновлении. Следите за новостями!"
+    
+    else:
+        # Без токена HF — используем заглушку
+        if msg_type == "text":
+            ai_response = f"Ответ на: '{prompt}'. Для полноценной работы нужен API ключ."
+        elif msg_type == "code":
+            ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Подключите API."
+        elif msg_type == "image":
+            ai_response = "Подключите Hugging Face API для генерации изображений."
+        else:
+            ai_response = "Неизвестный тип запроса."
+    
+    # Сохранение в историю
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)", (msg_id_1, user_id, prompt, msg_type))
-        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)", (msg_id_2, user_id, ai_response, msg_type))
+        cursor.execute(
+            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)",
+            (msg_id_1, user_id, prompt, msg_type)
+        )
+        cursor.execute(
+            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)",
+            (msg_id_2, user_id, ai_response, msg_type)
+        )
         conn.commit()
     
     return {"response": ai_response, "type": msg_type}
