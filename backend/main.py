@@ -13,6 +13,7 @@ import uuid
 import json
 import hashlib
 import base64
+import urllib.parse
 
 load_dotenv()
 
@@ -30,7 +31,6 @@ DATABASE = "database.db"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
 BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
 
-# Хранилище code_verifier для PKCE
 pkce_store = {}
 
 @contextmanager
@@ -45,34 +45,33 @@ def get_db():
 def create_tables():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY, vk_id INTEGER UNIQUE, email TEXT, name TEXT,
         photo TEXT, balance REAL DEFAULT 0.0, credits INTEGER DEFAULT 3,
         subscription_status TEXT DEFAULT 'free', referral_code TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history (
         id TEXT PRIMARY KEY, user_id TEXT, role TEXT,
         content TEXT, message_type TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
     cursor.execute('''CREATE TABLE IF NOT EXISTS referrals (
         id TEXT PRIMARY KEY, referrer_id TEXT, referee_id TEXT,
         reward_amount REAL DEFAULT 0.0, status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
     conn.commit()
     conn.close()
 
 def generate_pkce():
-    """Генерация PKCE параметров для VK ID"""
     code_verifier = secrets.token_urlsafe(64)
     code_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(code_verifier.encode('ascii')).digest()
     ).decode('ascii').rstrip('=')
     return code_verifier, code_challenge
+
+# ============================================
+# ГЛАВНАЯ + VK CALLBACK
+# ============================================
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
@@ -84,27 +83,25 @@ async def homepage(request: Request):
         return await process_vk_auth(code, device_id, state)
     
     return """<html><body style="font-family:Arial;text-align:center;padding:50px;">
-    <h1>🤖 Backend работает!</h1><p>VK ID + PKCE авторизация готова.</p></body></html>"""
+    <h1>🤖 Backend работает!</h1><p>VK ID + PKCE готово.</p></body></html>"""
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "database": "sqlite", "auth": "vk_id_pkce"}
+
+# ============================================
+# АВТОРИЗАЦИЯ VK ID
+# ============================================
 
 @app.get("/auth/vk/login")
 async def vk_login_url():
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     callback = BACKEND_URL
     
-    # Генерация PKCE
     code_verifier, code_challenge = generate_pkce()
-    
-    # Генерация state для безопасности
     state = secrets.token_urlsafe(32)
-    
-    # Сохраняем verifier для использования при обмене кода
     pkce_store[state] = code_verifier
     
-    # Формируем URL с PKCE параметрами
     login_url = (
         f"https://id.vk.com/authorize?"
         f"response_type=code"
@@ -119,16 +116,13 @@ async def vk_login_url():
     return {"login_url": login_url}
 
 async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
-    """Обработка кода авторизации от VK ID с PKCE"""
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     client_secret = os.getenv("VK_CLIENT_SECRET", "AAHXNzlDsumtOLOfMnXt")
     callback = BACKEND_URL
     
-    # Получаем сохранённый code_verifier
     code_verifier = pkce_store.pop(state, secrets.token_urlsafe(64))
     
     try:
-        # Обмен кода на токен через VK ID API
         token_response = requests.post(
             "https://id.vk.com/oauth2/auth",
             data={
@@ -157,7 +151,6 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
         access_token = token_data["access_token"]
         user_id = int(token_data.get("user_id", 0))
         
-        # Получение данных пользователя через VK ID API
         user_response = requests.post(
             "https://id.vk.com/oauth2/user_info",
             data={"access_token": access_token, "client_id": client_id},
@@ -198,23 +191,19 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
         
         session_token = f"{user_db['id']}_{secrets.token_hex(16)}"
         user_json = json.dumps(user_db, default=str)
+        user_json_encoded = urllib.parse.quote(user_json)
+        
+        redirect_url = f"{FRONTEND_URL}?auth=success&token={session_token}&userData={user_json_encoded}"
         
         return HTMLResponse(content=f"""
             <html>
             <head>
-                <script>
-                    try {{
-                        localStorage.setItem('session_token', '{session_token}');
-                        localStorage.setItem('current_user', '{user_json}');
-                        window.location.href = '{FRONTEND_URL}';
-                    }} catch(e) {{
-                        document.body.innerHTML = '<h1>✅ Авторизация успешна!</h1><p>{name}</p><a href="{FRONTEND_URL}">Перейти</a>';
-                    }}
-                </script>
+                <meta http-equiv="refresh" content="0;url={redirect_url}">
             </head>
             <body style="font-family:Arial;text-align:center;padding:50px;">
                 <h1>✅ Авторизация успешна!</h1>
                 <p>Перенаправляем...</p>
+                <script>window.location.href = '{redirect_url}';</script>
             </body>
             </html>
         """)
@@ -227,6 +216,10 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
             <a href="{FRONTEND_URL}">Вернуться</a>
             </body></html>
         """)
+
+# ============================================
+# ЧАТ С ИИ
+# ============================================
 
 @app.post("/chat/send")
 async def send_message(message: dict, request: Request):
@@ -244,7 +237,6 @@ async def send_message(message: dict, request: Request):
     
     if msg_type in ["text", "code"] and hf_token:
         try:
-            # Генерация текста/кода через Hugging Face
             if msg_type == "code":
                 formatted_prompt = f"Write code for: {prompt}. Provide only the code without explanations."
             else:
@@ -271,7 +263,7 @@ async def send_message(message: dict, request: Request):
                 else:
                     ai_response = str(result)
             else:
-                ai_response = f"Ошибка API: {hf_response.status_code}. Модель загружается, попробуйте через 30 секунд."
+                ai_response = f"Модель загружается. Попробуйте через 30 секунд. (Код: {hf_response.status_code})"
                 
         except Exception as e:
             print(f"HF Error: {e}")
@@ -279,7 +271,6 @@ async def send_message(message: dict, request: Request):
     
     elif msg_type == "image" and hf_token:
         try:
-            # Генерация изображений через Hugging Face
             hf_response = requests.post(
                 "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
                 headers={"Authorization": f"Bearer {hf_token}"},
@@ -288,42 +279,56 @@ async def send_message(message: dict, request: Request):
             )
             
             if hf_response.status_code == 200:
-                # Сохраняем изображение и возвращаем URL
-                ai_response = "Изображение сгенерировано! (Для отображения нужно настроить хранилище файлов)"
+                ai_response = "Изображение сгенерировано! (Для полного отображения нужно настроить хранилище)"
             else:
-                ai_response = f"Ошибка генерации: {hf_response.status_code}. Модель загружается."
+                ai_response = f"Модель загружается. Попробуйте через 30 секунд. (Код: {hf_response.status_code})"
                 
         except Exception as e:
             ai_response = f"Ошибка: {str(e)}"
     
-    elif msg_type == "video":
-        ai_response = "Генерация видео будет доступна в следующем обновлении. Следите за новостями!"
+    elif msg_type == "video" and hf_token:
+        try:
+            hf_video_response = requests.post(
+                "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                json={
+                    "inputs": prompt,
+                    "parameters": {"num_frames": 16, "num_inference_steps": 25}
+                },
+                timeout=120
+            )
+            
+            if hf_video_response.status_code == 200:
+                ai_response = f"Видео сгенерировано по запросу: '{prompt}'."
+            elif hf_video_response.status_code == 503:
+                ai_response = "⏳ Модель загружается... Попробуйте через 30-60 секунд."
+            else:
+                ai_response = f"Модель загружается. Попробуйте через минуту. (Код: {hf_video_response.status_code})"
+                
+        except requests.exceptions.Timeout:
+            ai_response = "⏳ Генерация видео занимает до 2 минут. Попробуйте повторить."
+        except Exception as e:
+            ai_response = f"Ошибка генерации видео: {str(e)}"
     
     else:
-        # Без токена HF — используем заглушку
         if msg_type == "text":
-            ai_response = f"Ответ на: '{prompt}'. Для полноценной работы нужен API ключ."
+            ai_response = f"Ответ на: '{prompt}'. Для полноценной работы подключите API."
         elif msg_type == "code":
             ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Подключите API."
         elif msg_type == "image":
             ai_response = "Подключите Hugging Face API для генерации изображений."
+        elif msg_type == "video":
+            ai_response = "Подключите Hugging Face API для генерации видео."
         else:
             ai_response = "Неизвестный тип запроса."
     
-    # Сохранение в историю
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)",
-            (msg_id_1, user_id, prompt, msg_type)
-        )
-        cursor.execute(
-            "INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)",
-            (msg_id_2, user_id, ai_response, msg_type)
-        )
+        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)", (msg_id_1, user_id, prompt, msg_type))
+        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)", (msg_id_2, user_id, ai_response, msg_type))
         conn.commit()
     
     return {"response": ai_response, "type": msg_type}
@@ -334,6 +339,10 @@ async def get_history(user_id: str):
         cursor = conn.cursor()
         history = cursor.execute("SELECT * FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", (user_id,)).fetchall()
     return {"history": [dict(msg) for msg in history]}
+
+# ============================================
+# КРЕДИТЫ
+# ============================================
 
 @app.post("/credits/deduct")
 async def deduct_credits(data: dict, request: Request):
@@ -352,9 +361,82 @@ async def deduct_credits(data: dict, request: Request):
     
     return {"success": False, "error": "Недостаточно кредитов"}
 
+# ============================================
+# ПЛАТЕЖИ ЮKASSA
+# ============================================
+
+@app.post("/payment/create")
+async def create_payment(payment_data: dict, request: Request):
+    user_id = request.headers.get("X-User-ID")
+    package = payment_data.get("package")
+    amount = float(payment_data.get("amount", 0))
+    
+    shop_id = os.getenv("YOOKASSA_SHOP_ID", "")
+    secret_key = os.getenv("YOOKASSA_SECRET_KEY", "")
+    
+    if not shop_id or not secret_key:
+        return {"success": False, "error": "ЮKassa не настроена"}
+    
+    packages = {
+        'starter': {'credits': 150, 'desc': 'Пакет Starter — 150 кредитов'},
+        'professional': {'credits': 450, 'desc': 'Пакет Professional — 450 кредитов'},
+        'business': {'credits': 1100, 'desc': 'Пакет Business — 1100 кредитов'},
+        'unlimited': {'credits': 3500, 'desc': 'Пакет Unlimited — 3500 кредитов'}
+    }
+    
+    pkg = packages.get(package)
+    if not pkg:
+        return {"success": False, "error": "Неизвестный пакет"}
+    
+    try:
+        from yookassa import Configuration, Payment as YooPayment
+        Configuration.account_id = shop_id
+        Configuration.secret_key = secret_key
+        
+        payment = YooPayment.create({
+            "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
+            "confirmation": {"type": "redirect", "return_url": f"{FRONTEND_URL}?payment=success&user={user_id}&pkg={package}"},
+            "capture": True,
+            "description": pkg['desc'],
+            "metadata": {"user_id": user_id, "package": package, "credits": pkg['credits']}
+        }, str(uuid.uuid4()))
+        
+        return {"success": True, "payment_id": payment.id, "confirmation_url": payment.confirmation.confirmation_url}
+        
+    except Exception as e:
+        print(f"Payment error: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/payment/webhook")
+async def payment_webhook(request: Request):
+    try:
+        body = await request.body()
+        data = json.loads(body)
+        
+        if data.get("event") == "payment.succeeded":
+            metadata = data.get("object", {}).get("metadata", {})
+            user_id = metadata.get("user_id")
+            credits_to_add = int(metadata.get("credits", 0))
+            
+            if user_id and credits_to_add > 0:
+                with get_db() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE users SET credits = credits + ?, updated_at = datetime('now') WHERE id = ?", (credits_to_add, user_id))
+                    conn.commit()
+                print(f"✅ +{credits_to_add} кредитов для {user_id}")
+        
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return {"status": "error"}
+
+# ============================================
+# ЗАПУСК
+# ============================================
+
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 ЗАПУСК СЕРВЕРА AI ASSISTANT PRO (VK ID + PKCE)")
+    print("🚀 ЗАПУСК AI ASSISTANT PRO")
     print(f"Backend: {BACKEND_URL}")
     print(f"Frontend: {FRONTEND_URL}")
     print("=" * 60)
