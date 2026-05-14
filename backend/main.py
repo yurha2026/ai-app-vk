@@ -235,35 +235,62 @@ async def send_message(message: dict, request: Request):
     hf_token = os.getenv("HF_TOKEN", "")
     ai_response = ""
     
-    if msg_type in ["text", "code"] and hf_token:
+        if msg_type in ["text", "code"] and hf_token:
         try:
             if msg_type == "code":
-                formatted_prompt = f"Write code for: {prompt}. Provide only the code without explanations."
+                formatted_prompt = f"Write code for: {prompt}. Provide only the code."
             else:
                 formatted_prompt = prompt
             
-            hf_response = requests.post(
-                "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-                headers={"Authorization": f"Bearer {hf_token}"},
-                json={
-                    "inputs": f"[INST] {formatted_prompt} [/INST]",
-                    "parameters": {
-                        "max_new_tokens": 512,
-                        "temperature": 0.7,
-                        "return_full_text": False
-                    }
-                },
-                timeout=30
-            )
+            # Пробуем несколько моделей по очереди
+            models = [
+                "Qwen/Qwen2-1.5B-Instruct",
+                "HuggingFaceH4/zephyr-7b-beta",
+                "google/flan-t5-base",
+                "microsoft/DialoGPT-large"
+            ]
             
-            if hf_response.status_code == 200:
-                result = hf_response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    ai_response = result[0].get("generated_text", "Ошибка генерации")
-                else:
-                    ai_response = str(result)
-            else:
-                ai_response = f"Модель загружается. Попробуйте через 30 секунд. (Код: {hf_response.status_code})"
+            ai_response = ""
+            
+            for model in models:
+                try:
+                    hf_response = requests.post(
+                        f"https://api-inference.huggingface.co/models/{model}",
+                        headers={"Authorization": f"Bearer {hf_token}"},
+                        json={
+                            "inputs": formatted_prompt,
+                            "parameters": {
+                                "max_new_tokens": 512,
+                                "temperature": 0.7,
+                                "return_full_text": False
+                            }
+                        },
+                        timeout=30
+                    )
+                    
+                    if hf_response.status_code == 200:
+                        result = hf_response.json()
+                        if isinstance(result, list) and len(result) > 0:
+                            ai_response = result[0].get("generated_text", "")
+                        elif isinstance(result, dict):
+                            ai_response = result.get("generated_text", str(result))
+                        else:
+                            ai_response = str(result)
+                        
+                        if ai_response:
+                            break
+                    elif hf_response.status_code == 503:
+                        ai_response = f"⏳ Модель {model} загружается... Попробуйте через 30 секунд."
+                        continue
+                    else:
+                        continue
+                        
+                except Exception as model_error:
+                    print(f"Model {model} error: {model_error}")
+                    continue
+            
+            if not ai_response:
+                ai_response = "Все модели сейчас загружаются. Попробуйте через 30-60 секунд."
                 
         except Exception as e:
             print(f"HF Error: {e}")
