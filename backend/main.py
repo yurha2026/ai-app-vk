@@ -32,6 +32,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
 BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
 
 pkce_store = {}
+gigachat_token_cache = {"token": "", "expires": 0}
 
 
 @contextmanager
@@ -73,6 +74,106 @@ def generate_pkce():
     return code_verifier, code_challenge
 
 
+def get_gigachat_token():
+    """Получение токена GigaChat через OAuth"""
+    import time
+    if gigachat_token_cache["token"] and gigachat_token_cache["expires"] > time.time():
+        return gigachat_token_cache["token"]
+    
+    auth_key = os.getenv("GIGACHAT_AUTH_KEY", "")
+    if not auth_key:
+        return ""
+    
+    try:
+        response = requests.post(
+            "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+                "RqUID": str(uuid.uuid4()),
+                "Authorization": f"Basic {auth_key}"
+            },
+            data={"scope": "GIGACHAT_API_PERS"},
+            verify=False,
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            gigachat_token_cache["token"] = data.get("access_token", "")
+            gigachat_token_cache["expires"] = time.time() + 1800
+            return gigachat_token_cache["token"]
+    except Exception as e:
+        print(f"GigaChat token error: {e}")
+    return ""
+
+
+def ask_gigachat(prompt, msg_type="text"):
+    """Запрос к GigaChat API"""
+    token = get_gigachat_token()
+    if not token:
+        return ""
+    
+    if msg_type == "code":
+        system_msg = "Ты опытный программист. Пиши только код без объяснений."
+    else:
+        system_msg = "Ты полезный ассистент. Отвечай подробно и по-русски."
+    
+    try:
+        response = requests.post(
+            "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}"
+            },
+            json={
+                "model": "GigaChat",
+                "messages": [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1024
+            },
+            verify=False,
+            timeout=30
+        )
+        if response.status_code == 200:
+            data = response.json()
+            choices = data.get("choices", [])
+            if choices:
+                return choices[0].get("message", {}).get("content", "")
+    except Exception as e:
+        print(f"GigaChat error: {e}")
+    return ""
+
+
+def ask_huggingface(prompt, hf_token):
+    """Запрос к Hugging Face API (резервный)"""
+    models = [
+        "Qwen/Qwen2-1.5B-Instruct",
+        "HuggingFaceH4/zephyr-7b-beta",
+        "google/flan-t5-base"
+    ]
+    for model in models:
+        try:
+            response = requests.post(
+                f"https://api-inference.huggingface.co/models/{model}",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                json={"inputs": prompt, "parameters": {"max_new_tokens": 512, "temperature": 0.7, "return_full_text": False}},
+                timeout=30
+            )
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    text = result[0].get("generated_text", "")
+                    if text:
+                        return text
+        except Exception:
+            continue
+    return ""
+
+
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     code = request.query_params.get("code")
@@ -86,7 +187,8 @@ async def homepage(request: Request):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "database": "sqlite"}
+    gc = "connected" if get_gigachat_token() else "not connected"
+    return {"status": "ok", "database": "sqlite", "gigachat": gc}
 
 
 @app.get("/auth/vk/login")
@@ -117,30 +219,15 @@ async def process_vk_auth(code, device_id="", state=""):
     try:
         token_response = requests.post(
             "https://id.vk.com/oauth2/auth",
-            data={
-                "grant_type": "authorization_code",
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "redirect_uri": callback,
-                "code": code,
-                "code_verifier": code_verifier,
-                "device_id": device_id,
-                "state": state
-            },
+            data={"grant_type": "authorization_code", "client_id": client_id, "client_secret": client_secret, "redirect_uri": callback, "code": code, "code_verifier": code_verifier, "device_id": device_id, "state": state},
             timeout=10
         )
         token_data = token_response.json()
         if "access_token" not in token_data:
-            return HTMLResponse(content=f"""<html><body style="font-family:Arial;text-align:center;padding:50px;">
-            <h1>Ошибка авторизации</h1><p>{json.dumps(token_data, ensure_ascii=False)}</p>
-            <a href="{FRONTEND_URL}">Вернуться</a></body></html>""")
+            return HTMLResponse(content=f"<html><body><h1>Ошибка</h1><p>{json.dumps(token_data, ensure_ascii=False)}</p><a href='{FRONTEND_URL}'>Назад</a></body></html>")
         access_token = token_data["access_token"]
         user_id = int(token_data.get("user_id", 0))
-        user_response = requests.post(
-            "https://id.vk.com/oauth2/user_info",
-            data={"access_token": access_token, "client_id": client_id},
-            timeout=10
-        )
+        user_response = requests.post("https://id.vk.com/oauth2/user_info", data={"access_token": access_token, "client_id": client_id}, timeout=10)
         user_data = user_response.json()
         first_name = user_data.get("user", {}).get("first_name", "")
         last_name = user_data.get("user", {}).get("last_name", "")
@@ -166,16 +253,10 @@ async def process_vk_auth(code, device_id="", state=""):
         user_json = json.dumps(user_db, default=str)
         user_json_encoded = urllib.parse.quote(user_json)
         redirect_url = f"{FRONTEND_URL}?auth=success&token={session_token}&userData={user_json_encoded}"
-        return HTMLResponse(content=f"""<html><head>
-        <meta http-equiv="refresh" content="0;url={redirect_url}">
-        </head><body style="font-family:Arial;text-align:center;padding:50px;">
-        <h1>Авторизация успешна!</h1><p>Перенаправляем...</p>
-        <script>window.location.href='{redirect_url}';</script>
-        </body></html>""")
+        return HTMLResponse(content=f"<html><head><meta http-equiv='refresh' content='0;url={redirect_url}'></head><body><p>Перенаправляем...</p><script>window.location.href='{redirect_url}';</script></body></html>")
     except Exception as e:
         print(f"Auth error: {e}")
-        return HTMLResponse(content=f"""<html><body style="font-family:Arial;text-align:center;padding:50px;">
-        <h1>Ошибка</h1><p>{str(e)}</p><a href="{FRONTEND_URL}">Вернуться</a></body></html>""")
+        return HTMLResponse(content=f"<html><body><h1>Ошибка</h1><p>{str(e)}</p><a href='{FRONTEND_URL}'>Назад</a></body></html>")
 
 
 @app.post("/chat/send")
@@ -187,101 +268,60 @@ async def send_message(message: dict, request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     if not prompt:
         raise HTTPException(status_code=400, detail="Empty prompt")
+    
     hf_token = os.getenv("HF_TOKEN", "")
     ai_response = ""
-    if msg_type in ["text", "code"] and hf_token:
-        try:
+    
+    # Приоритет: GigaChat → Hugging Face → Заглушка
+    if msg_type in ["text", "code"]:
+        # Пробуем GigaChat (бесплатно 1000 запросов/мес)
+        ai_response = ask_gigachat(prompt, msg_type)
+        
+        # Если GigaChat не ответил — пробуем Hugging Face
+        if not ai_response and hf_token:
             if msg_type == "code":
-                formatted_prompt = f"Write code for: {prompt}. Provide only the code."
+                ai_response = ask_huggingface(f"Write code for: {prompt}", hf_token)
             else:
-                formatted_prompt = prompt
-            models = [
-                "Qwen/Qwen2-1.5B-Instruct",
-                "HuggingFaceH4/zephyr-7b-beta",
-                "google/flan-t5-base",
-                "microsoft/DialoGPT-large"
-            ]
-            for model in models:
-                try:
-                    hf_response = requests.post(
-                        f"https://api-inference.huggingface.co/models/{model}",
-                        headers={"Authorization": f"Bearer {hf_token}"},
-                        json={
-                            "inputs": formatted_prompt,
-                            "parameters": {
-                                "max_new_tokens": 512,
-                                "temperature": 0.7,
-                                "return_full_text": False
-                            }
-                        },
-                        timeout=30
-                    )
-                    if hf_response.status_code == 200:
-                        result = hf_response.json()
-                        if isinstance(result, list) and len(result) > 0:
-                            ai_response = result[0].get("generated_text", "")
-                        elif isinstance(result, dict):
-                            ai_response = result.get("generated_text", str(result))
-                        else:
-                            ai_response = str(result)
-                        if ai_response:
-                            break
-                    elif hf_response.status_code == 503:
-                        ai_response = "Модель загружается... Попробуйте через 30 секунд."
-                        continue
+                ai_response = ask_huggingface(prompt, hf_token)
+        
+        # Если ничего не сработало — заглушка
+        if not ai_response:
+            if msg_type == "code":
+                ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Модели загружаются. Попробуйте через 30 сек."
+            else:
+                ai_response = f"Ответ на: '{prompt}'. Модели загружаются. Попробуйте через 30 секунд."
+    
+    elif msg_type == "image":
+        # Генерация изображений через GigaChat (Kandinsky)
+        gc_token = get_gigachat_token()
+        if gc_token:
+            try:
+                response = requests.post(
+                    "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {gc_token}"},
+                    json={"model": "GigaChat", "messages": [{"role": "user", "content": f"Нарисуй: {prompt}"}], "max_tokens": 512},
+                    verify=False, timeout=30
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        ai_response = choices[0].get("message", {}).get("content", "Изображение генерируется...")
                     else:
-                        continue
-                except Exception as model_error:
-                    print(f"Model {model} error: {model_error}")
-                    continue
-            if not ai_response:
-                ai_response = "Все модели загружаются. Попробуйте через 30-60 секунд."
-        except Exception as e:
-            print(f"HF Error: {e}")
-            ai_response = f"Ошибка генерации: {str(e)}"
-    elif msg_type == "image" and hf_token:
-        try:
-            hf_response = requests.post(
-                "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-                headers={"Authorization": f"Bearer {hf_token}"},
-                json={"inputs": prompt},
-                timeout=60
-            )
-            if hf_response.status_code == 200:
-                ai_response = "Изображение сгенерировано! (Настройте хранилище для отображения)"
-            else:
-                ai_response = f"Модель загружается. Попробуйте через 30 секунд. (Код: {hf_response.status_code})"
-        except Exception as e:
-            ai_response = f"Ошибка: {str(e)}"
-    elif msg_type == "video" and hf_token:
-        try:
-            hf_video_response = requests.post(
-                "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b",
-                headers={"Authorization": f"Bearer {hf_token}"},
-                json={"inputs": prompt, "parameters": {"num_frames": 16, "num_inference_steps": 25}},
-                timeout=120
-            )
-            if hf_video_response.status_code == 200:
-                ai_response = f"Видео сгенерировано по запросу: '{prompt}'."
-            elif hf_video_response.status_code == 503:
-                ai_response = "Модель загружается... Попробуйте через 30-60 секунд."
-            else:
-                ai_response = f"Модель загружается. (Код: {hf_video_response.status_code})"
-        except requests.exceptions.Timeout:
-            ai_response = "Генерация видео занимает до 2 минут. Попробуйте повторить."
-        except Exception as e:
-            ai_response = f"Ошибка видео: {str(e)}"
-    else:
-        if msg_type == "text":
-            ai_response = f"Ответ на: '{prompt}'. Подключите API для полноценной работы."
-        elif msg_type == "code":
-            ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Подключите API."
-        elif msg_type == "image":
-            ai_response = "Подключите Hugging Face API для генерации изображений."
-        elif msg_type == "video":
-            ai_response = "Подключите Hugging Face API для генерации видео."
+                        ai_response = "Не удалось сгенерировать изображение. Попробуйте другой запрос."
+                else:
+                    ai_response = f"Ошибка генерации. Код: {response.status_code}"
+            except Exception as e:
+                ai_response = f"Ошибка: {str(e)}"
         else:
-            ai_response = "Неизвестный тип запроса."
+            ai_response = "Сервис изображений загружается. Попробуйте через 30 секунд."
+    
+    elif msg_type == "video":
+        ai_response = "Генерация видео будет доступна в следующем обновлении. Следите за новостями!"
+    
+    else:
+        ai_response = "Неизвестный тип запроса."
+    
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     with get_db() as conn:
@@ -340,13 +380,11 @@ async def create_payment(payment_data: dict, request: Request):
         payment = YooPayment.create({
             "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
             "confirmation": {"type": "redirect", "return_url": f"{FRONTEND_URL}?payment=success&user={user_id}&pkg={package}"},
-            "capture": True,
-            "description": pkg['desc'],
+            "capture": True, "description": pkg['desc'],
             "metadata": {"user_id": user_id, "package": package, "credits": pkg['credits']}
         }, str(uuid.uuid4()))
         return {"success": True, "payment_id": payment.id, "confirmation_url": payment.confirmation.confirmation_url}
     except Exception as e:
-        print(f"Payment error: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -364,21 +402,17 @@ async def payment_webhook(request: Request):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE users SET credits = credits + ?, updated_at = datetime('now') WHERE id = ?", (credits_to_add, user_id))
                     conn.commit()
-                print(f"+{credits_to_add} credits for {user_id}")
         return {"status": "ok"}
     except Exception as e:
-        print(f"Webhook error: {e}")
         return {"status": "error"}
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("AI ASSISTANT PRO - STARTING")
+    print("AI ASSISTANT PRO - GigaChat + HuggingFace")
     print("=" * 60)
     create_tables()
     try:
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     except Exception as e:
         print(f"ERROR: {e}")
-        import traceback
-        traceback.print_exc()
