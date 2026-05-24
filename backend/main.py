@@ -280,71 +280,79 @@ async def send_message(message: dict, request: Request):
         response_type = "text"
 
     elif msg_type == "image":
-        if hf_token:
+        gc_token = get_gigachat_token()
+        if gc_token:
             try:
-                image_models = [
-                    "black-forest-labs/FLUX.1-schnell",
-                    "stabilityai/stable-diffusion-xl-base-1.0",
-                    "runwayml/stable-diffusion-v1-5"
-                ]
-                image_generated = False
-                for model in image_models:
-                    try:
-                        hf_response = requests.post(
-                            f"https://api-inference.huggingface.co/models/{model}",
-                            headers={"Authorization": f"Bearer {hf_token}"},
-                            json={"inputs": prompt},
-                            timeout=60
-                        )
-                        if hf_response.status_code == 200 and hf_response.headers.get("content-type", "").startswith("image"):
-                            import base64 as b64
-                            img_base64 = b64.b64encode(hf_response.content).decode('utf-8')
-                            ai_response = f"data:image/png;base64,{img_base64}"
-                            response_type = "image"
-                            image_generated = True
-                            break
-                        elif hf_response.status_code == 503:
-                            continue
+                response = requests.post(
+                    "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "Authorization": f"Bearer {gc_token}"
+                    },
+                    json={
+                        "model": "GigaChat",
+                        "messages": [
+                            {"role": "user", "content": f"Нарисуй изображение: {prompt}"}
+                        ],
+                        "function_call": "auto",
+                        "temperature": 0.7,
+                        "max_tokens": 1024
+                    },
+                    verify=False,
+                    timeout=60
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        msg_content = choices[0].get("message", {})
+                        content = msg_content.get("content", "")
+                        # Проверяем наличие вложений с изображениями
+                        if "img src=" in content or "<img" in content:
+                            # Извлекаем file_id из тега img
+                            import re
+                            file_ids = re.findall(r'src="([^"]+)"', content)
+                            if file_ids:
+                                file_id = file_ids[0]
+                                # Скачиваем файл
+                                img_response = requests.get(
+                                    f"https://gigachat.devices.sberbank.ru/api/v1/files/{file_id}/content",
+                                    headers={"Authorization": f"Bearer {gc_token}", "Accept": "image/*"},
+                                    verify=False,
+                                    timeout=30
+                                )
+                                if img_response.status_code == 200 and len(img_response.content) > 100:
+                                    import base64 as b64
+                                    img_base64 = b64.b64encode(img_response.content).decode('utf-8')
+                                    content_type = img_response.headers.get("content-type", "image/png")
+                                    ai_response = f"data:{content_type};base64,{img_base64}"
+                                    response_type = "image"
+                                else:
+                                    ai_response = f"🎨 Изображение создано по запросу '{prompt}':\n\n{content}\n\n⏳ Повторите запрос для загрузки картинки."
+                                    response_type = "text"
+                            else:
+                                ai_response = f"🎨 Результат по запросу '{prompt}':\n\n{content}"
+                                response_type = "text"
                         else:
-                            continue
-                    except Exception:
-                        continue
-                if not image_generated:
-                    gc_response = ask_gigachat(f"Подробно опиши как бы выглядело изображение: {prompt}", "text")
-                    if gc_response:
-                        ai_response = f"🎨 Описание изображения:\n\n{gc_response}\n\n⏳ Модели генерации загружаются. Первый запрос может занять до 60 секунд. Попробуйте ещё раз."
+                            ai_response = f"🎨 Описание по запросу '{prompt}':\n\n{content}\n\n💡 Попробуйте запрос на английском для лучшего результата."
+                            response_type = "text"
                     else:
-                        ai_response = "⏳ Модели генерации изображений загружаются. Первый запрос может занять до 60 секунд. Попробуйте через 30-60 секунд."
+                        ai_response = "Не удалось сгенерировать. Попробуйте другой запрос."
+                        response_type = "text"
+                else:
+                    ai_response = f"Ошибка генерации. Код: {response.status_code}. Попробуйте через 30 секунд."
                     response_type = "text"
             except Exception as e:
                 print(f"Image error: {e}")
-                ai_response = f"Ошибка генерации: {str(e)}"
+                ai_response = f"Ошибка: {str(e)}"
                 response_type = "text"
         else:
-            ai_response = "Для генерации изображений нужен API ключ Hugging Face."
+            ai_response = "Сервис изображений загружается. Попробуйте через 30 секунд."
             response_type = "text"
 
     elif msg_type == "video":
-        if hf_token:
-            try:
-                hf_video_response = requests.post(
-                    "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b",
-                    headers={"Authorization": f"Bearer {hf_token}"},
-                    json={"inputs": prompt, "parameters": {"num_frames": 16, "num_inference_steps": 25}},
-                    timeout=120
-                )
-                if hf_video_response.status_code == 200:
-                    ai_response = f"🎬 Видео сгенерировано по запросу: '{prompt}'."
-                elif hf_video_response.status_code == 503:
-                    ai_response = "⏳ Модель видео загружается. Первый запрос может занять до 60 секунд. Попробуйте через минуту."
-                else:
-                    ai_response = f"⏳ Модель видео загружается. (Код: {hf_video_response.status_code}). Попробуйте через минуту."
-            except requests.exceptions.Timeout:
-                ai_response = "⏳ Генерация видео занимает до 2 минут. Попробуйте повторить запрос."
-            except Exception as e:
-                ai_response = f"Ошибка генерации видео: {str(e)}"
-        else:
-            ai_response = "Генерация видео будет доступна в следующем обновлении."
+        ai_response = "🎬 Генерация видео находится в разработке.\n\n⚡ Эта функция будет доступна в ближайшем обновлении!\n\n📌 Мы интегрируем продвинутый генератор видео для создания качественных роликов по вашему описанию.\n\nСледите за новостями!"
         response_type = "text"
 
     else:
@@ -393,6 +401,20 @@ async def add_credits(data: dict, request: Request):
         cursor.execute("UPDATE users SET credits = credits + ?, updated_at = datetime('now') WHERE id = ?", (amount, user_id))
         conn.commit()
     return {"success": True, "added": amount}
+
+
+@app.get("/credits/check")
+async def check_credits(request: Request):
+    user_id = request.query_params.get("user_id", "")
+    if not user_id:
+        return {"success": False}
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT credits, balance FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+        if result:
+            return {"success": True, "credits": result[0], "balance": result[1]}
+    return {"success": False}
 
 
 @app.post("/payment/create")
