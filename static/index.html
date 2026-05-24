@@ -90,12 +90,15 @@
                 <p style="color: var(--text-muted); font-size: 16px;">Генерируйте текст, код, изображения и видео</p>
                 <p style="color: var(--text-muted); font-size: 14px; margin-top: 10px;">Для работы нужен вход через ВКонтакте</p>
                 <p style="color: #22c55e; font-size: 14px; margin-top: 10px; font-weight: 600;">🎁 Вы получите 3 бесплатных кредита!</p>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); display: inline-block;">
+                    <p style="font-size: 13px; color: #f59e0b;">⚠️ Первый запрос может занять до 60 секунд (модели загружаются). Последующие запросы будут значительно быстрее!</p>
+                </div>
             </div>
         </main>
     </div>
 
     <div class="input-area">
-        <textarea id="prompt-input" placeholder="Напишите ваш запрос здесь..." rows="4" style="min-height: 100px;"></textarea>
+        <textarea id="prompt-input" placeholder="Напишите ваш запрос здесь... Первый запрос может занять до 60 сек." rows="4" style="min-height: 100px;"></textarea>
         <button onclick="sendMessage()" id="send-btn">✨ Отправить</button>
     </div>
 
@@ -131,15 +134,24 @@
         </div>
     </div>
 
-    <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid var(--border);">
+    <!-- Индикатор загрузки -->
+    <div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; justify-content:center; align-items:center;">
+        <div style="background: var(--bg-medium, #1e293b); padding: 30px; border-radius: 16px; text-align:center; border: 1px solid rgba(6, 182, 212, 0.3);">
+            <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+            <p style="color: #e2e8f0; font-size: 16px; font-weight: 600;">Генерация контента...</p>
+            <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Первый запрос может занять до 60 секунд</p>
+        </div>
+    </div>
+
+    <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid var(--border, #334155);">
         <div style="max-width: 900px; margin: 0 auto;">
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37, 99, 235, 0.05); border-radius: 16px; border: 1px solid var(--border);">
-                <h4 style="color: var(--accent); margin-bottom: 10px;">💡 Как работает оплата?</h4>
-                <p style="font-size: 13px; color: var(--text-light);">Вы покупаете кредиты для генерации контента. После оплаты кредиты начисляются автоматически.</p>
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37, 99, 235, 0.05); border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.15);">
+                <h4 style="color: #06b6d4; margin-bottom: 10px;">💡 Как работает оплата?</h4>
+                <p style="font-size: 13px; color: #94a3b8;">Вы покупаете кредиты для генерации контента. После оплаты кредиты начисляются автоматически.</p>
             </div>
             <div style="margin-bottom: 25px; padding: 20px; background: rgba(16, 185, 129, 0.05); border-radius: 16px; border: 1px dashed rgba(16, 185, 129, 0.3);">
                 <h4 style="color: #10b981; margin-bottom: 8px;">📦 Доставка цифрового товара</h4>
-                <ul style="text-align: left; display: inline-block; font-size: 13px; color: var(--text-light);">
+                <ul style="text-align: left; display: inline-block; font-size: 13px; color: #94a3b8;">
                     <li>✅ Автоматическое начисление кредитов</li>
                     <li>✅ Мгновенный доступ к сервису</li>
                     <li>✅ Техподдержка 24/7</li>
@@ -147,21 +159,21 @@
             </div>
             <div style="margin-bottom: 25px; padding: 20px; background: rgba(245, 158, 11, 0.05); border-radius: 16px; border: 1px solid rgba(245, 158, 11, 0.3);">
                 <h4 style="color: #f59e0b; margin-bottom: 10px;">👤 Контакты</h4>
-                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px; color: var(--text-light);">
+                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px; color: #94a3b8;">
                     <div><strong>Email:</strong><br>support@neuro-guru.ru</div>
                     <div><strong>Режим работы:</strong><br>24/7</div>
                 </div>
-                <div style="background: var(--bg-dark); padding: 12px; border-radius: 8px; display: inline-block; color: var(--text-light);">
+                <div style="background: #0f172a; padding: 12px; border-radius: 8px; display: inline-block; color: #94a3b8;">
                     <strong>Плательщик НПД (Самозанятый):</strong><br>
-                    [Юрченко Андрей Андреевич]<br>
-                    ИНН: [672507151308]
+                    [ЗДЕСЬ ВПИШИ СВОЁ ФИО]<br>
+                    ИНН: [ЗДЕСЬ ВПИШИ СВОЙ ИНН]
                 </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted);">
-                <a href="/offer.html" style="color: var(--accent); text-decoration: none; margin: 0 8px;">📄 Оферта</a> |
-                <a href="/privacy.html" style="color: var(--accent); text-decoration: none; margin: 0 8px;">🔒 Конфиденциальность</a>
+            <div style="font-size: 12px; color: #64748b;">
+                <a href="/offer.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">📄 Оферта</a> |
+                <a href="/privacy.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">🔒 Конфиденциальность</a>
             </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 15px;">© 2025 AI Assistant Pro</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 15px;">© 2025 AI Assistant Pro</div>
         </div>
     </footer>
 
@@ -177,7 +189,6 @@
             const authStatus = urlParams.get('auth');
             const tokenFromUrl = urlParams.get('token');
             const userDataFromUrl = urlParams.get('userData');
-            
             if (authStatus === 'success' && tokenFromUrl && userDataFromUrl) {
                 try {
                     const userData = JSON.parse(decodeURIComponent(userDataFromUrl));
@@ -188,47 +199,41 @@
                     await updateUI();
                     await loadHistory();
                     return;
-                } catch (e) {
-                    console.error('Ошибка данных авторизации:', e);
-                }
+                } catch (e) { console.error('Auth data error:', e); }
             }
-            
             const token = localStorage.getItem('session_token');
             const user = localStorage.getItem('current_user');
-            
             if (token && user) {
                 try {
                     currentUser = JSON.parse(user);
                     await updateUI();
                     await loadHistory();
                 } catch (e) {
-                    console.error('Ошибка сессии:', e);
                     localStorage.removeItem('session_token');
                     localStorage.removeItem('current_user');
                 }
             }
         });
-        
+
         function setMode(mode) {
             document.querySelectorAll('.menu-item, .video-item').forEach(item => item.classList.remove('active'));
             event.target.classList.add('active');
             currentMode = mode;
         }
-        
+
+        function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+        function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+
         async function sendMessage() {
             const input = document.getElementById('prompt-input');
             const message = input.value.trim();
-            
             if (!currentUser || !message) { alert('Сначала войдите в аккаунт!'); return; }
-            
             const creditsNeeded = getCostByType(currentMode);
             const credits = parseFloat(currentUser.credits || 0);
-            
             if (credits < creditsNeeded) { alert('Недостаточно кредитов!'); openPaymentModal(); return; }
-            
             addMessageToChat('user', message);
             input.value = '';
-            
+            showLoading();
             try {
                 const response = await fetch(`${API_BASE}/chat/send`, {
                     method: 'POST',
@@ -236,26 +241,28 @@
                     body: JSON.stringify({ prompt: message, type: currentMode })
                 });
                 const result = await response.json();
-                addMessageToChat('assistant', result.response, currentMode);
+                hideLoading();
+                addMessageToChat('assistant', result.response, result.type);
                 await deductCredits(creditsNeeded);
             } catch (error) {
-                console.error('Ошибка:', error);
+                hideLoading();
+                console.error('Error:', error);
                 addMessageToChat('system', 'Ошибка соединения с сервером.');
             }
         }
-        
+
         function getCostByType(type) {
             switch(type) { case 'text': return 1; case 'code': return 2; case 'image': return 3; case 'video': return 30; default: return 1; }
         }
-        
+
         async function vkLogin() {
             try {
                 const response = await fetch(`${API_BASE}/auth/vk/login`);
                 const data = await response.json();
                 window.location.href = data.login_url;
-            } catch (e) { console.error('VK Error:', e); alert('Ошибка авторизации'); }
+            } catch (e) { alert('Ошибка авторизации'); }
         }
-        
+
         async function updateUI() {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('user-section').style.display = 'flex';
@@ -265,50 +272,54 @@
             document.getElementById('credits-display').textContent = `${currentUser.credits || 3} кр.`;
             const rc = document.getElementById('referral-code'); if (rc) rc.textContent = currentUser.referral_code || '------';
         }
-        
+
         async function loadHistory() {
             const cw = document.getElementById('chat-window'); cw.innerHTML = '';
             try {
                 const r = await fetch(`${API_BASE}/chat/history/${currentUser.id}`);
                 const d = await r.json();
                 d.history.forEach(msg => addMessageToChat(msg.role, msg.content, msg.message_type));
-            } catch (e) { console.error('History error:', e); }
+            } catch (e) {}
         }
-        
+
         async function deductCredits(amount) {
             currentUser.credits -= amount;
             localStorage.setItem('current_user', JSON.stringify(currentUser));
             await updateUI();
             try { await fetch(`${API_BASE}/credits/deduct`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-User-ID': currentUser.id }, body: JSON.stringify({ amount }) }); } catch (e) {}
         }
-        
+
         function addMessageToChat(role, content, type) {
             const cw = document.getElementById('chat-window');
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            if (type === 'image') { div.innerHTML = `<p><strong>Изображение:</strong></p><img src="${content}" style="max-width:100%;border-radius:12px;">`; }
-            else if (type === 'video') { div.innerHTML = `<p><strong>Видео:</strong></p><video controls width="100%" style="border-radius:12px;"><source src="${content}" type="video/mp4"></video>`; }
-            else { div.innerHTML = `<pre>${content}</pre>`; }
+            if (type === 'image' && content.startsWith('data:image')) {
+                div.innerHTML = `<p><strong>🎨 Сгенерированное изображение:</strong></p><img src="${content}" style="max-width:100%;border-radius:12px;margin-top:8px;">`;
+            } else if (type === 'video') {
+                div.innerHTML = `<p><strong>🎬 Видео:</strong></p><video controls width="100%" style="border-radius:12px;"><source src="${content}" type="video/mp4"></video>`;
+            } else {
+                div.innerHTML = `<pre>${content}</pre>`;
+            }
             cw.appendChild(div); cw.scrollTop = cw.scrollHeight;
         }
-        
+
         function logout() { localStorage.removeItem('session_token'); localStorage.removeItem('current_user'); location.reload(); }
         function openModal() { if (currentUser && currentUser.referral_code) { document.getElementById('invite-modal').classList.add('active'); } else { alert('Войдите в аккаунт!'); } }
         function closeModal() { document.getElementById('invite-modal').classList.remove('active'); }
         document.getElementById('invite-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
         function copyReferralLink() { const l = `${window.location.origin}?ref=${currentUser.referral_code}`; navigator.clipboard.writeText(l).then(() => alert('Ссылка скопирована!')); }
-        
+
         function selectPackage(pkgName, price) {
             selectedPackage = pkgName; selectedPrice = price;
             const n = { 'starter': 'Starter (150 кр.)', 'professional': 'Pro (450 кр.)', 'business': 'Business (1100 кр.)', 'unlimited': 'Unlimited (3500 кр.)' };
             document.getElementById('payment-summary').innerHTML = `Пакет: <strong>${n[pkgName]}</strong><br>Цена: <strong>${price} ₽</strong>`;
             openPaymentModal();
         }
-        
+
         function openPaymentModal() { document.getElementById('payment-modal').classList.add('active'); }
         function closePaymentModal() { document.getElementById('payment-modal').classList.remove('active'); }
         document.getElementById('payment-modal').addEventListener('click', function(e) { if (e.target === this) closePaymentModal(); });
-        
+
         async function processPayment() {
             if (!selectedPackage || !selectedPrice) { alert('Выберите пакет!'); return; }
             try {
@@ -319,7 +330,7 @@
             } catch (e) { alert('Ошибка соединения'); }
             closePaymentModal();
         }
-        
+
         document.getElementById('prompt-input').addEventListener('keypress', function(e) { if (e.ctrlKey && e.key === 'Enter') sendMessage(); });
     </script>
 </body>

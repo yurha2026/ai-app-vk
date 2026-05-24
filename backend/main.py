@@ -14,6 +14,7 @@ import json
 import hashlib
 import base64
 import urllib.parse
+import time
 
 load_dotenv()
 
@@ -75,15 +76,11 @@ def generate_pkce():
 
 
 def get_gigachat_token():
-    """Получение токена GigaChat через OAuth"""
-    import time
     if gigachat_token_cache["token"] and gigachat_token_cache["expires"] > time.time():
         return gigachat_token_cache["token"]
-    
     auth_key = os.getenv("GIGACHAT_AUTH_KEY", "")
     if not auth_key:
         return ""
-    
     try:
         response = requests.post(
             "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
@@ -108,16 +105,13 @@ def get_gigachat_token():
 
 
 def ask_gigachat(prompt, msg_type="text"):
-    """Запрос к GigaChat API"""
     token = get_gigachat_token()
     if not token:
         return ""
-    
     if msg_type == "code":
         system_msg = "Ты опытный программист. Пиши только код без объяснений."
     else:
         system_msg = "Ты полезный ассистент. Отвечай подробно и по-русски."
-    
     try:
         response = requests.post(
             "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
@@ -149,7 +143,6 @@ def ask_gigachat(prompt, msg_type="text"):
 
 
 def ask_huggingface(prompt, hf_token):
-    """Запрос к Hugging Face API (резервный)"""
     models = [
         "Qwen/Qwen2-1.5B-Instruct",
         "HuggingFaceH4/zephyr-7b-beta",
@@ -268,68 +261,104 @@ async def send_message(message: dict, request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     if not prompt:
         raise HTTPException(status_code=400, detail="Empty prompt")
-    
     hf_token = os.getenv("HF_TOKEN", "")
     ai_response = ""
-    
-    # Приоритет: GigaChat → Hugging Face → Заглушка
+    response_type = msg_type
+
     if msg_type in ["text", "code"]:
-        # Пробуем GigaChat (бесплатно 1000 запросов/мес)
         ai_response = ask_gigachat(prompt, msg_type)
-        
-        # Если GigaChat не ответил — пробуем Hugging Face
         if not ai_response and hf_token:
             if msg_type == "code":
                 ai_response = ask_huggingface(f"Write code for: {prompt}", hf_token)
             else:
                 ai_response = ask_huggingface(prompt, hf_token)
-        
-        # Если ничего не сработало — заглушка
         if not ai_response:
             if msg_type == "code":
                 ai_response = f"# Код: {prompt}\nprint('Hello World')\n# Модели загружаются. Попробуйте через 30 сек."
             else:
                 ai_response = f"Ответ на: '{prompt}'. Модели загружаются. Попробуйте через 30 секунд."
-    
+        response_type = "text"
+
     elif msg_type == "image":
-        # Генерация изображений через GigaChat (Kandinsky)
-        gc_token = get_gigachat_token()
-        if gc_token:
+        if hf_token:
             try:
-                response = requests.post(
-                    "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
-                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {gc_token}"},
-                    json={"model": "GigaChat", "messages": [{"role": "user", "content": f"Нарисуй: {prompt}"}], "max_tokens": 512},
-                    verify=False, timeout=30
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    choices = data.get("choices", [])
-                    if choices:
-                        ai_response = choices[0].get("message", {}).get("content", "Изображение генерируется...")
+                image_models = [
+                    "black-forest-labs/FLUX.1-schnell",
+                    "stabilityai/stable-diffusion-xl-base-1.0",
+                    "runwayml/stable-diffusion-v1-5"
+                ]
+                image_generated = False
+                for model in image_models:
+                    try:
+                        hf_response = requests.post(
+                            f"https://api-inference.huggingface.co/models/{model}",
+                            headers={"Authorization": f"Bearer {hf_token}"},
+                            json={"inputs": prompt},
+                            timeout=60
+                        )
+                        if hf_response.status_code == 200 and hf_response.headers.get("content-type", "").startswith("image"):
+                            import base64 as b64
+                            img_base64 = b64.b64encode(hf_response.content).decode('utf-8')
+                            ai_response = f"data:image/png;base64,{img_base64}"
+                            response_type = "image"
+                            image_generated = True
+                            break
+                        elif hf_response.status_code == 503:
+                            continue
+                        else:
+                            continue
+                    except Exception:
+                        continue
+                if not image_generated:
+                    gc_response = ask_gigachat(f"Подробно опиши как бы выглядело изображение: {prompt}", "text")
+                    if gc_response:
+                        ai_response = f"🎨 Описание изображения:\n\n{gc_response}\n\n⏳ Модели генерации загружаются. Первый запрос может занять до 60 секунд. Попробуйте ещё раз."
                     else:
-                        ai_response = "Не удалось сгенерировать изображение. Попробуйте другой запрос."
-                else:
-                    ai_response = f"Ошибка генерации. Код: {response.status_code}"
+                        ai_response = "⏳ Модели генерации изображений загружаются. Первый запрос может занять до 60 секунд. Попробуйте через 30-60 секунд."
+                    response_type = "text"
             except Exception as e:
-                ai_response = f"Ошибка: {str(e)}"
+                print(f"Image error: {e}")
+                ai_response = f"Ошибка генерации: {str(e)}"
+                response_type = "text"
         else:
-            ai_response = "Сервис изображений загружается. Попробуйте через 30 секунд."
-    
+            ai_response = "Для генерации изображений нужен API ключ Hugging Face."
+            response_type = "text"
+
     elif msg_type == "video":
-        ai_response = "Генерация видео будет доступна в следующем обновлении. Следите за новостями!"
-    
+        if hf_token:
+            try:
+                hf_video_response = requests.post(
+                    "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b",
+                    headers={"Authorization": f"Bearer {hf_token}"},
+                    json={"inputs": prompt, "parameters": {"num_frames": 16, "num_inference_steps": 25}},
+                    timeout=120
+                )
+                if hf_video_response.status_code == 200:
+                    ai_response = f"🎬 Видео сгенерировано по запросу: '{prompt}'."
+                elif hf_video_response.status_code == 503:
+                    ai_response = "⏳ Модель видео загружается. Первый запрос может занять до 60 секунд. Попробуйте через минуту."
+                else:
+                    ai_response = f"⏳ Модель видео загружается. (Код: {hf_video_response.status_code}). Попробуйте через минуту."
+            except requests.exceptions.Timeout:
+                ai_response = "⏳ Генерация видео занимает до 2 минут. Попробуйте повторить запрос."
+            except Exception as e:
+                ai_response = f"Ошибка генерации видео: {str(e)}"
+        else:
+            ai_response = "Генерация видео будет доступна в следующем обновлении."
+        response_type = "text"
+
     else:
         ai_response = "Неизвестный тип запроса."
-    
+        response_type = "text"
+
     msg_id_1 = str(uuid.uuid4())
     msg_id_2 = str(uuid.uuid4())
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'user', ?, ?)", (msg_id_1, user_id, prompt, msg_type))
-        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)", (msg_id_2, user_id, ai_response, msg_type))
+        cursor.execute("INSERT INTO chat_history (id, user_id, role, content, message_type) VALUES (?, ?, 'assistant', ?, ?)", (msg_id_2, user_id, ai_response, response_type))
         conn.commit()
-    return {"response": ai_response, "type": msg_type}
+    return {"response": ai_response, "type": response_type}
 
 
 @app.get("/chat/history/{user_id}")
@@ -355,6 +384,17 @@ async def deduct_credits(data: dict, request: Request):
     return {"success": False, "error": "Недостаточно кредитов"}
 
 
+@app.post("/credits/add")
+async def add_credits(data: dict, request: Request):
+    user_id = request.headers.get("X-User-ID")
+    amount = int(data.get("amount", 0))
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET credits = credits + ?, updated_at = datetime('now') WHERE id = ?", (amount, user_id))
+        conn.commit()
+    return {"success": True, "added": amount}
+
+
 @app.post("/payment/create")
 async def create_payment(payment_data: dict, request: Request):
     user_id = request.headers.get("X-User-ID")
@@ -363,7 +403,7 @@ async def create_payment(payment_data: dict, request: Request):
     shop_id = os.getenv("YOOKASSA_SHOP_ID", "")
     secret_key = os.getenv("YOOKASSA_SECRET_KEY", "")
     if not shop_id or not secret_key:
-        return {"success": False, "error": "ЮKassa не настроена"}
+        return {"success": False, "error": "Платёжная система не настроена. Обратитесь к администратору."}
     packages = {
         'starter': {'credits': 150, 'desc': 'Пакет Starter'},
         'professional': {'credits': 450, 'desc': 'Пакет Professional'},
