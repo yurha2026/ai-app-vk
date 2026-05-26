@@ -144,20 +144,135 @@
         </div>
     </div>
 
-    <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid rgba(148,163,184,0.15);">
+        <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid rgba(148,163,184,0.15);">
         <div style="max-width: 900px; margin: 0 auto;">
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37, 99, 235, 0.05); border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.15);">
-                <h4 style="color: #06b6d4; margin-bottom: 10px;">💡 Как работает оплата?</h4>
-                <p style="font-size: 13px; color: #94a3b8;">Вы покупаете кредиты для генерации контента. После оплаты кредиты начисляются автоматически.</p>
+            
+            <!-- Расход кредитов -->
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37, 99, 235, 0.05); border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.15); text-align: left;">
+                <h4 style="color: #06b6d4; margin-bottom: 15px; text-align: center;">💡 Расход кредитов</h4>
+                <table style="width: 100%; border-collapse: collapse; color: #94a3b8; font-size: 13px;">
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.15);">
+                        <th style="padding: 8px; text-align: left; color: #06b6d4;">Услуга</th>
+                        <th style="padding: 8px; text-align: center; color: #06b6d4;">Кредиты</th>
+                        <th style="padding: 8px; text-align: right; color: #06b6d4;">Описание</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">💬 Генерация текста</td>
+                        <td style="padding: 8px; text-align: center;">1 кредит</td>
+                        <td style="padding: 8px; text-align: right;">Статьи, посты, описания</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">📝 Генерация кода</td>
+                        <td style="padding: 8px; text-align: center;">2 кредита</td>
+                        <td style="padding: 8px; text-align: right;">Код на любом языке</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">🎨 Генерация изображений</td>
+                        <td style="padding: 8px; text-align: center;">3 кредита</td>
+                        <td style="padding: 8px; text-align: right;">Картинки по описанию</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">🎬 Генерация видео</td>
+                        <td style="padding: 8px; text-align: center;">30 кредитов</td>
+                        <td style="padding: 8px; text-align: right;">Видеоролики (в разработке)</td>
+                    </tr>
+                </table>
             </div>
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(16, 185, 129, 0.05); border-radius: 16px; border: 1px dashed rgba(16, 185, 129, 0.3);">
-                <h4 style="color: #10b981; margin-bottom: 8px;">📦 Доставка цифрового товара</h4>
-                <ul style="text-align: left; display: inline-block; font-size: 13px; color: #94a3b8;">
-                    <li>✅ Автоматическое начисление кредитов</li>
-                    <li>✅ Мгновенный доступ к сервису</li>
-                    <li>✅ Техподдержка 24/7</li>
-                </ul>
+
+            <!-- Стоимость пакетов -->
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(6, 182, 212, 0.05); border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.15); text-align: left;">
+                <h4 style="color: #06b6d4; margin-bottom: 15px; text-align: center;">💰 Стоимость пакетов кредитов</h4>
+                <table style="width: 100%; border-collapse: collapse; color: #94a3b8; font-size: 13px;">
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.15);">
+                        <th style="padding: 8px; text-align: left; color: #06b6d4;">Пакет</th>
+                        <th style="padding: 8px; text-align: center; color: #06b6d4;">Цена</th>
+                        <th style="padding: 8px; text-align: right; color: #06b6d4;">Кредиты</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">🌟 Starter</td>
+                        <td style="padding: 8px; text-align: center;">199 ₽</td>
+                        <td style="padding: 8px; text-align: right;">150 кредитов</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">⚡ Professional</td>
+                        <td style="padding: 8px; text-align: center;">499 ₽</td>
+                        <td style="padding: 8px; text-align: right;">450 кредитов (-10%)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
+                        <td style="padding: 8px;">🏢 Business</td>
+                        <td style="padding: 8px; text-align: center;">999 ₽</td>
+                        <td style="padding: 8px; text-align: right;">1100 кредитов (-20%)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">🚀 Unlimited</td>
+                        <td style="padding: 8px; text-align: center;">2999 ₽</td>
+                        <td style="padding: 8px; text-align: right;">3500 кредитов (-30%)</td>
+                    </tr>
+                </table>
             </div>
+
+            <!-- Правила оформления и оплаты -->
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(16, 185, 129, 0.05); border-radius: 16px; border: 1px solid rgba(16, 185, 129, 0.15); text-align: left;">
+                <h4 style="color: #10b981; margin-bottom: 15px; text-align: center;">📋 Правила оформления заказа и оплаты</h4>
+                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
+                    <p><strong style="color: #10b981;">1. Оформление заказа:</strong></p>
+                    <ul style="padding-left: 20px; margin-bottom: 10px;">
+                        <li>Выберите нужный пакет кредитов в боковой панели</li>
+                        <li>Нажмите кнопку «Купить»</li>
+                        <li>Подтвердите выбор в окне оплаты</li>
+                    </ul>
+                    <p><strong style="color: #10b981;">2. Способы оплаты:</strong></p>
+                    <ul style="padding-left: 20px; margin-bottom: 10px;">
+                        <li>Банковская карта (Visa, MasterCard, МИР)</li>
+                        <li>СБП (Система быстрых платежей)</li>
+                        <li>Электронные кошельки</li>
+                    </ul>
+                    <p><strong style="color: #10b981;">3. Условия оплаты:</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li>Оплата производится в рублях РФ</li>
+                        <li>Платёж обрабатывается через систему Робокасса</li>
+                        <li>Оплата списывается единоразово за выбранный пакет</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Порядок предоставления услуг -->
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(99, 102, 241, 0.05); border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.15); text-align: left;">
+                <h4 style="color: #818cf8; margin-bottom: 15px; text-align: center;">📦 Порядок предоставления услуг</h4>
+                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
+                    <ul style="padding-left: 20px;">
+                        <li>✅ Кредиты начисляются <strong>автоматически</strong> в течение 1–5 минут после успешной оплаты</li>
+                        <li>✅ Баланс кредитов отображается в личном кабинете</li>
+                        <li>✅ Доступ к сервису — мгновенный через веб-интерфейс</li>
+                        <li>✅ Генерация контента происходит в режиме реального времени</li>
+                        <li>✅ Новые пользователи получают 3 бесплатных кредита для тестирования</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Возврат и отказ -->
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(239, 68, 68, 0.05); border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.15); text-align: left;">
+                <h4 style="color: #ef4444; margin-bottom: 15px; text-align: center;">↩️ Условия возврата и отказа от покупки</h4>
+                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
+                    <p><strong style="color: #ef4444;">Возврат денежных средств:</strong></p>
+                    <ul style="padding-left: 20px; margin-bottom: 10px;">
+                        <li>Возврат возможен при технической невозможности оказания услуг по вине сервиса</li>
+                        <li>Заявка на возврат подаётся на email: support@neuro-guru.ru в течение 14 дней с момента оплаты</li>
+                        <li>Возврат осуществляется тем же способом оплаты в течение 10 рабочих дней</li>
+                        <li>Неиспользованные кредиты подлежат возврату в полном объёме</li>
+                        <li>Использованные кредиты возврату не подлежат</li>
+                    </ul>
+                    <p><strong style="color: #ef4444;">Отказ от покупки:</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li>Покупатель вправе отказаться от покупки до момента использования кредитов</li>
+                        <li>Для отказа направьте заявление на email: support@neuro-guru.ru</li>
+                        <li>Срок рассмотрения — 5 рабочих дней</li>
+                        <li>Возврат производится без вычета комиссии платёжной системы или банка</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Контакты -->
             <div style="margin-bottom: 25px; padding: 20px; background: rgba(245, 158, 11, 0.05); border-radius: 16px; border: 1px solid rgba(245, 158, 11, 0.3);">
                 <h4 style="color: #f59e0b; margin-bottom: 10px;">👤 Контакты</h4>
                 <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px; color: #94a3b8;">
@@ -166,15 +281,17 @@
                 </div>
                 <div style="background: #0f172a; padding: 12px; border-radius: 8px; display: inline-block; color: #94a3b8;">
                     <strong>Плательщик НПД (Самозанятый):</strong><br>
-                    [Юрченко Андрей Андреевич]<br>
+                    Юрченко Андрей Андреевич<br>
                     ИНН: [672507151308]
                 </div>
             </div>
+            
+            <!-- Юридические документы -->
             <div style="font-size: 12px; color: #64748b;">
-                <a href="/offer.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">📄 Оферта</a> |
-                <a href="/privacy.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">🔒 Конфиденциальность</a>
+                <a href="/offer.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">📄 Публичная оферта</a> |
+                <a href="/privacy.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">🔒 Политика конфиденциальности</a>
             </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 15px;">© 2025 AI Assistant Pro</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 15px;">© 2025 AI Assistant Pro. Все права защищены.</div>
         </div>
     </footer>
 
