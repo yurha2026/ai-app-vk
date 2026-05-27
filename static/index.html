@@ -3,24 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Assistant Pro</title>
+    <title>AI Assistant Pro — Нейросети нового поколения</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Анимированные частицы на фоне */
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+        .particle { position: absolute; width: 4px; height: 4px; background: rgba(6, 182, 212, 0.3); border-radius: 50%; animation: float 15s infinite; }
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+        .particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 20s; }
+        .particle:nth-child(2) { left: 20%; animation-delay: 2s; animation-duration: 15s; width: 6px; height: 6px; }
+        .particle:nth-child(3) { left: 35%; animation-delay: 4s; animation-duration: 18s; }
+        .particle:nth-child(4) { left: 50%; animation-delay: 1s; animation-duration: 22s; width: 3px; height: 3px; }
+        .particle:nth-child(5) { left: 65%; animation-delay: 3s; animation-duration: 16s; width: 5px; height: 5px; }
+        .particle:nth-child(6) { left: 75%; animation-delay: 5s; animation-duration: 19s; }
+        .particle:nth-child(7) { left: 85%; animation-delay: 0.5s; animation-duration: 21s; width: 4px; height: 4px; }
+        .particle:nth-child(8) { left: 95%; animation-delay: 3.5s; animation-duration: 17s; }
+        
+        /* Пульсирующее свечение логотипа */
+        .logo-glow { animation: logoGlow 3s ease-in-out infinite; }
+        @keyframes logoGlow {
+            0%, 100% { text-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
+            50% { text-shadow: 0 0 20px rgba(6, 182, 212, 0.6), 0 0 40px rgba(37, 99, 235, 0.3); }
+        }
+        
+        /* Анимация появления карточек */
+        .feature-card { animation: cardAppear 0.5s ease forwards; opacity: 0; transform: translateY(20px); }
+        .feature-card:nth-child(1) { animation-delay: 0.1s; }
+        .feature-card:nth-child(2) { animation-delay: 0.2s; }
+        .feature-card:nth-child(3) { animation-delay: 0.3s; }
+        .feature-card:nth-child(4) { animation-delay: 0.4s; }
+        @keyframes cardAppear {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Градиентная рамка при наведении */
+        .feature-card:hover {
+            background: rgba(6, 182, 212, 0.05) !important;
+            border-image: linear-gradient(135deg, #2563eb, #06b6d4) 1;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+        }
+        
+        /* Типографика ответов */
+        .message.assistant pre {
+            font-size: 16px !important;
+            line-height: 1.8 !important;
+            color: #e2e8f0 !important;
+        }
+        
+        /* Анимация набора текста */
+        .typing-indicator {
+            display: inline-flex; gap: 4px; padding: 15px 20px;
+            background: var(--bg-medium); border-radius: 18px; border: 1px solid var(--border);
+        }
+        .typing-dot {
+            width: 8px; height: 8px; background: var(--accent); border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+        
+        /* Статус-бар онлайн */
+        .status-online {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; background: rgba(34,197,94,0.1); border-radius: 20px;
+            font-size: 12px; color: #22c55e; border: 1px solid rgba(34,197,94,0.3);
+        }
+        .status-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="logo">🤖 AI Assistant Pro</div>
+    <!-- Анимированные частицы -->
+    <div class="particles">
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+
+    <nav class="navbar" style="z-index: 10; position: relative;">
+        <div class="logo logo-glow">🤖 AI Assistant Pro</div>
+        <div class="status-online"><div class="status-dot"></div>Онлайн</div>
         <div id="auth-section">
             <button id="vk-login-btn" onclick="vkLogin()">🔵 Войти ВКонтакте</button>
         </div>
         <div id="user-section" style="display:none;">
-            <img id="avatar-display" src="" alt="" style="display:none; border-radius: 50%; width: 48px; height: 48px; object-fit: cover;">
+            <img id="avatar-display" src="" alt="" style="display:none; border-radius: 50%; width: 48px; height: 48px; object-fit: cover; border: 2px solid var(--accent);">
             <span id="username-display" style="font-weight: 600;"></span>
             <button onclick="logout()" class="logout-btn">Выход</button>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" style="position: relative; z-index: 1;">
         <aside class="sidebar">
             <div class="menu-item active" onclick="setMode('text')">💬 Текст</div>
             <div class="menu-item" onclick="setMode('code')">📝 Код</div>
@@ -84,10 +166,10 @@
             </div>
         </aside>
 
-                <main class="chat-window" id="chat-window">
+        <main class="chat-window" id="chat-window">
             <div class="welcome-message">
                 <h1>🤖 AI Assistant Pro</h1>
-                <p style="color: var(--text-light); font-size: 18px; margin-bottom: 5px;">Генерируйте контент с помощью искусственного интеллекта</p>
+                <p style="color: var(--text-light); font-size: 18px; margin-bottom: 5px;">Нейросети нового поколения</p>
                 <p style="color: var(--text-muted); font-size: 14px;">Войдите через ВКонтакте чтобы начать</p>
                 
                 <div class="welcome-features">
@@ -109,7 +191,7 @@
                     <div class="feature-card" style="border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05);">
                         <div class="feature-icon">🎬</div>
                         <div class="feature-title">Генерация видео</div>
-                        <div class="feature-desc" style="color: #f59e0b;">⚡ Скоро! Ожидается в ближайшем обновлении</div>
+                        <div class="feature-desc" style="color: #f59e0b;">⚡ Скоро! В ближайшем обновлении</div>
                     </div>
                 </div>
                 
@@ -120,14 +202,13 @@
         </main>
     </div>
 
-    <div class="input-area">
+    <div class="input-area" style="z-index: 10;">
         <textarea id="prompt-input" placeholder="Напишите ваш запрос здесь..." rows="4" style="min-height: 100px;"></textarea>
         <button onclick="sendMessage()" id="send-btn">✨ Отправить</button>
     </div>
 
-    <!-- Предупреждение для изображений и видео -->
     <div id="media-warning" style="display:none; position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); padding:10px 20px; border-radius:12px; z-index:1500; max-width:500px; text-align:center;">
-        <p style="font-size:13px; color:#f59e0b; margin:0;">⚠️ Первый запрос может занять до 60 секунд. Последующие будут быстрее!</p>
+        <p style="font-size:13px; color:#f59e0b; margin:0;">⚠️ Первый запрос может занять до 60 секунд</p>
     </div>
 
     <div class="modal-overlay" id="invite-modal">
@@ -162,162 +243,64 @@
         </div>
     </div>
 
-    <div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:3000; justify-content:center; align-items:center;">
-        <div style="background: #1e293b; padding: 30px; border-radius: 16px; text-align:center; border: 1px solid rgba(6, 182, 212, 0.3);">
-            <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+    <div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:3000; justify-content:center; align-items:center;">
+        <div style="background: #1e293b; padding: 35px; border-radius: 20px; text-align:center; border: 1px solid rgba(6, 182, 212, 0.3); box-shadow: 0 0 30px rgba(6,182,212,0.2);">
+            <div class="typing-indicator" style="margin-bottom: 20px;">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
             <p style="color: #e2e8f0; font-size: 16px; font-weight: 600;" id="loading-text">Генерация контента...</p>
             <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;" id="loading-hint">Пожалуйста подождите</p>
         </div>
     </div>
 
-        <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid rgba(148,163,184,0.15);">
+    <footer style="background: rgba(30, 41, 59, 0.95); padding: 40px 30px; margin-top: 50px; text-align: center; border-top: 1px solid rgba(148,163,184,0.15); position: relative; z-index: 1;">
         <div style="max-width: 900px; margin: 0 auto;">
-            
-            <!-- Расход кредитов -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37, 99, 235, 0.05); border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.15); text-align: left;">
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(37,99,235,0.05); border-radius: 16px; border: 1px solid rgba(148,163,184,0.15); text-align: left;">
                 <h4 style="color: #06b6d4; margin-bottom: 15px; text-align: center;">💡 Расход кредитов</h4>
-                <table style="width: 100%; border-collapse: collapse; color: #94a3b8; font-size: 13px;">
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.15);">
-                        <th style="padding: 8px; text-align: left; color: #06b6d4;">Услуга</th>
-                        <th style="padding: 8px; text-align: center; color: #06b6d4;">Кредиты</th>
-                        <th style="padding: 8px; text-align: right; color: #06b6d4;">Описание</th>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">💬 Генерация текста</td>
-                        <td style="padding: 8px; text-align: center;">1 кредит</td>
-                        <td style="padding: 8px; text-align: right;">Статьи, посты, описания</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">📝 Генерация кода</td>
-                        <td style="padding: 8px; text-align: center;">2 кредита</td>
-                        <td style="padding: 8px; text-align: right;">Код на любом языке</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">🎨 Генерация изображений</td>
-                        <td style="padding: 8px; text-align: center;">3 кредита</td>
-                        <td style="padding: 8px; text-align: right;">Картинки по описанию</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px;">🎬 Генерация видео</td>
-                        <td style="padding: 8px; text-align: center;">30 кредитов</td>
-                        <td style="padding: 8px; text-align: right;">Видеоролики (в разработке)</td>
-                    </tr>
+                <table style="width:100%; border-collapse:collapse; color:#94a3b8; font-size:13px;">
+                    <tr style="border-bottom:1px solid rgba(148,163,184,0.15);"><th style="padding:8px;text-align:left;color:#06b6d4;">Услуга</th><th style="padding:8px;text-align:center;color:#06b6d4;">Кредиты</th></tr>
+                    <tr style="border-bottom:1px solid rgba(148,163,184,0.1);"><td style="padding:8px;">💬 Текст</td><td style="padding:8px;text-align:center;">1</td></tr>
+                    <tr style="border-bottom:1px solid rgba(148,163,184,0.1);"><td style="padding:8px;">📝 Код</td><td style="padding:8px;text-align:center;">2</td></tr>
+                    <tr style="border-bottom:1px solid rgba(148,163,184,0.1);"><td style="padding:8px;">🎨 Изображения</td><td style="padding:8px;text-align:center;">3</td></tr>
+                    <tr><td style="padding:8px;">🎬 Видео</td><td style="padding:8px;text-align:center;">30</td></tr>
                 </table>
             </div>
-
-            <!-- Стоимость пакетов -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(6, 182, 212, 0.05); border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.15); text-align: left;">
-                <h4 style="color: #06b6d4; margin-bottom: 15px; text-align: center;">💰 Стоимость пакетов кредитов</h4>
-                <table style="width: 100%; border-collapse: collapse; color: #94a3b8; font-size: 13px;">
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.15);">
-                        <th style="padding: 8px; text-align: left; color: #06b6d4;">Пакет</th>
-                        <th style="padding: 8px; text-align: center; color: #06b6d4;">Цена</th>
-                        <th style="padding: 8px; text-align: right; color: #06b6d4;">Кредиты</th>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">🌟 Starter</td>
-                        <td style="padding: 8px; text-align: center;">199 ₽</td>
-                        <td style="padding: 8px; text-align: right;">150 кредитов</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">⚡ Professional</td>
-                        <td style="padding: 8px; text-align: center;">499 ₽</td>
-                        <td style="padding: 8px; text-align: right;">450 кредитов (-10%)</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(148,163,184,0.1);">
-                        <td style="padding: 8px;">🏢 Business</td>
-                        <td style="padding: 8px; text-align: center;">999 ₽</td>
-                        <td style="padding: 8px; text-align: right;">1100 кредитов (-20%)</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px;">🚀 Unlimited</td>
-                        <td style="padding: 8px; text-align: center;">2999 ₽</td>
-                        <td style="padding: 8px; text-align: right;">3500 кредитов (-30%)</td>
-                    </tr>
-                </table>
-            </div>
-
-            <!-- Правила оформления и оплаты -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(16, 185, 129, 0.05); border-radius: 16px; border: 1px solid rgba(16, 185, 129, 0.15); text-align: left;">
-                <h4 style="color: #10b981; margin-bottom: 15px; text-align: center;">📋 Правила оформления заказа и оплаты</h4>
-                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
-                    <p><strong style="color: #10b981;">1. Оформление заказа:</strong></p>
-                    <ul style="padding-left: 20px; margin-bottom: 10px;">
-                        <li>Выберите нужный пакет кредитов в боковой панели</li>
-                        <li>Нажмите кнопку «Купить»</li>
-                        <li>Подтвердите выбор в окне оплаты</li>
-                    </ul>
-                    <p><strong style="color: #10b981;">2. Способы оплаты:</strong></p>
-                    <ul style="padding-left: 20px; margin-bottom: 10px;">
-                        <li>Банковская карта (Visa, MasterCard, МИР)</li>
-                        <li>СБП (Система быстрых платежей)</li>
-                        <li>Электронные кошельки</li>
-                    </ul>
-                    <p><strong style="color: #10b981;">3. Условия оплаты:</strong></p>
-                    <ul style="padding-left: 20px;">
-                        <li>Оплата производится в рублях РФ</li>
-                        <li>Платёж обрабатывается через систему Робокасса</li>
-                        <li>Оплата списывается единоразово за выбранный пакет</li>
-                    </ul>
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(16,185,129,0.05); border-radius: 16px; border: 1px solid rgba(16,185,129,0.15); text-align: left;">
+                <h4 style="color: #10b981; margin-bottom: 10px; text-align: center;">📋 Правила оформления и оплаты</h4>
+                <div style="font-size:13px; color:#94a3b8; line-height:1.8;">
+                    <p>• Выберите пакет кредитов → нажмите «Купить» → оплатите картой или через СБП</p>
+                    <p>• Кредиты начисляются автоматически после оплаты</p>
+                    <p>• Оплата в рублях РФ через систему Робокасса</p>
                 </div>
             </div>
-
-            <!-- Порядок предоставления услуг -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(99, 102, 241, 0.05); border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.15); text-align: left;">
-                <h4 style="color: #818cf8; margin-bottom: 15px; text-align: center;">📦 Порядок предоставления услуг</h4>
-                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
-                    <ul style="padding-left: 20px;">
-                        <li>✅ Кредиты начисляются <strong>автоматически</strong> в течение 1–5 минут после успешной оплаты</li>
-                        <li>✅ Баланс кредитов отображается в личном кабинете</li>
-                        <li>✅ Доступ к сервису — мгновенный через веб-интерфейс</li>
-                        <li>✅ Генерация контента происходит в режиме реального времени</li>
-                        <li>✅ Новые пользователи получают 3 бесплатных кредита для тестирования</li>
-                    </ul>
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(239,68,68,0.05); border-radius: 16px; border: 1px solid rgba(239,68,68,0.15); text-align: left;">
+                <h4 style="color: #ef4444; margin-bottom: 10px; text-align: center;">↩️ Возврат и отказ</h4>
+                <div style="font-size:13px; color:#94a3b8; line-height:1.8;">
+                    <p>• Возврат возможен при технической невозможности оказания услуг</p>
+                    <p>• Заявка на возврат: support.neuro.guru@gmail.com (14 дней с момента оплаты)</p>
+                    <p>• Неиспользованные кредиты возвращаются полностью</p>
+                    <p>• Возврат без вычета комиссии платёжной системы</p>
                 </div>
             </div>
-
-            <!-- Возврат и отказ -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(239, 68, 68, 0.05); border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.15); text-align: left;">
-                <h4 style="color: #ef4444; margin-bottom: 15px; text-align: center;">↩️ Условия возврата и отказа от покупки</h4>
-                <div style="font-size: 13px; color: #94a3b8; line-height: 1.8;">
-                    <p><strong style="color: #ef4444;">Возврат денежных средств:</strong></p>
-                    <ul style="padding-left: 20px; margin-bottom: 10px;">
-                        <li>Возврат возможен при технической невозможности оказания услуг по вине сервиса</li>
-                        <li>Заявка на возврат подаётся на email: support@neuro-guru.ru в течение 14 дней с момента оплаты</li>
-                        <li>Возврат осуществляется тем же способом оплаты в течение 10 рабочих дней</li>
-                        <li>Неиспользованные кредиты подлежат возврату в полном объёме</li>
-                        <li>Использованные кредиты возврату не подлежат</li>
-                    </ul>
-                    <p><strong style="color: #ef4444;">Отказ от покупки:</strong></p>
-                    <ul style="padding-left: 20px;">
-                        <li>Покупатель вправе отказаться от покупки до момента использования кредитов</li>
-                        <li>Для отказа направьте заявление на email: support@neuro-guru.ru</li>
-                        <li>Срок рассмотрения — 5 рабочих дней</li>
-                        <li>Возврат производится без вычета комиссии платёжной системы или банка</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Контакты -->
-            <div style="margin-bottom: 25px; padding: 20px; background: rgba(245, 158, 11, 0.05); border-radius: 16px; border: 1px solid rgba(245, 158, 11, 0.3);">
+            <div style="margin-bottom: 25px; padding: 20px; background: rgba(245,158,11,0.05); border-radius: 16px; border: 1px solid rgba(245,158,11,0.3);">
                 <h4 style="color: #f59e0b; margin-bottom: 10px;">👤 Контакты</h4>
-                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px; color: #94a3b8;">
+                <div style="display:flex; justify-content:center; gap:30px; flex-wrap:wrap; margin-bottom:15px; color:#94a3b8;">
                     <div><strong>Email:</strong><br>support.neuro.guru@gmail.com</div>
                     <div><strong>Режим работы:</strong><br>24/7</div>
                 </div>
-                <div style="background: #0f172a; padding: 12px; border-radius: 8px; display: inline-block; color: #94a3b8;">
+                <div style="background:#0f172a; padding:12px; border-radius:8px; display:inline-block; color:#94a3b8;">
                     <strong>Плательщик НПД (Самозанятый):</strong><br>
                     Юрченко Андрей Андреевич<br>
                     ИНН: [672507151308]
                 </div>
             </div>
-            
-            <!-- Юридические документы -->
-            <div style="font-size: 12px; color: #64748b;">
-                <a href="/offer.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">📄 Публичная оферта</a> |
-                <a href="/privacy.html" style="color: #06b6d4; text-decoration: none; margin: 0 8px;">🔒 Политика конфиденциальности</a>
+            <div style="font-size:12px; color:#64748b;">
+                <a href="/offer.html" style="color:#06b6d4; text-decoration:none; margin:0 8px;">📄 Оферта</a> |
+                <a href="/privacy.html" style="color:#06b6d4; text-decoration:none; margin:0 8px;">🔒 Конфиденциальность</a>
             </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 15px;">© 2025 AI Assistant Pro. Все права защищены.</div>
+            <div style="font-size:11px; color:#64748b; margin-top:15px;">© 2025 AI Assistant Pro</div>
         </div>
     </footer>
 
@@ -363,38 +346,20 @@
             document.querySelectorAll('.menu-item, .video-item').forEach(item => item.classList.remove('active'));
             event.target.classList.add('active');
             currentMode = mode;
-            
-            // Показываем предупреждение только для изображений и видео
             const warning = document.getElementById('media-warning');
-            if (mode === 'image' || mode === 'video') {
-                warning.style.display = 'block';
-            } else {
-                warning.style.display = 'none';
-            }
+            warning.style.display = (mode === 'image' || mode === 'video') ? 'block' : 'none';
         }
 
         function showLoading(type) {
             const overlay = document.getElementById('loading-overlay');
             const text = document.getElementById('loading-text');
             const hint = document.getElementById('loading-hint');
-            
-            if (type === 'image') {
-                text.textContent = '🎨 Генерация изображения...';
-                hint.textContent = 'Первый запрос может занять до 60 секунд';
-            } else if (type === 'video') {
-                text.textContent = '🎬 Генерация видео...';
-                hint.textContent = 'Это может занять до 2 минут';
-            } else if (type === 'code') {
-                text.textContent = '📝 Генерация кода...';
-                hint.textContent = 'Пожалуйста подождите';
-            } else {
-                text.textContent = '💬 Генерация ответа...';
-                hint.textContent = 'Пожалуйста подождите';
-            }
-            
+            if (type === 'image') { text.textContent = '🎨 Генерация изображения...'; hint.textContent = 'Первый запрос может занять до 60 секунд'; }
+            else if (type === 'video') { text.textContent = '🎬 Генерация видео...'; hint.textContent = 'Это может занять до 2 минут'; }
+            else if (type === 'code') { text.textContent = '📝 Пишу код...'; hint.textContent = 'Анализирую задачу'; }
+            else { text.textContent = '💬 Думаю над ответом...'; hint.textContent = 'Обрабатываю запрос'; }
             overlay.style.display = 'flex';
         }
-        
         function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
 
         async function sendMessage() {
@@ -403,7 +368,7 @@
             if (!currentUser || !message) { alert('Сначала войдите в аккаунт!'); return; }
             const creditsNeeded = getCostByType(currentMode);
             const credits = parseFloat(currentUser.credits || 0);
-            if (credits < creditsNeeded) { alert('Недостаточно кредитов! Купите пакет.'); openPaymentModal(); return; }
+            if (credits < creditsNeeded) { alert('Недостаточно кредитов!'); openPaymentModal(); return; }
             addMessageToChat('user', message);
             input.value = '';
             showLoading(currentMode);
@@ -419,7 +384,7 @@
                 await deductCredits(creditsNeeded);
             } catch (error) {
                 hideLoading();
-                addMessageToChat('system', 'Ошибка соединения с сервером.');
+                addMessageToChat('system', 'Ошибка соединения с сервером. Попробуйте обновить страницу.');
             }
         }
 
@@ -432,7 +397,7 @@
                 const r = await fetch(`${API_BASE}/auth/vk/login`);
                 const d = await r.json();
                 window.location.href = d.login_url;
-            } catch (e) { alert('Ошибка авторизации'); }
+            } catch (e) { alert('Сервер загружается. Подождите 30 секунд и попробуйте снова.'); }
         }
 
         async function updateUI() {
@@ -440,8 +405,6 @@
             document.getElementById('user-section').style.display = 'flex';
             document.getElementById('username-display').textContent = currentUser.name;
             if (currentUser.photo) { const a = document.getElementById('avatar-display'); a.src = currentUser.photo; a.style.display = 'inline-block'; }
-            
-            // Синхронизация кредитов с сервером
             try {
                 const r = await fetch(`${API_BASE}/credits/check?user_id=${currentUser.id}`);
                 const d = await r.json();
@@ -451,7 +414,6 @@
                     localStorage.setItem('current_user', JSON.stringify(currentUser));
                 }
             } catch(e) {}
-            
             document.getElementById('balance-display').textContent = `${(currentUser.balance || 0).toFixed(0)} ₽`;
             document.getElementById('credits-display').textContent = `${currentUser.credits || 0} кр.`;
             const rc = document.getElementById('referral-code'); if (rc) rc.textContent = currentUser.referral_code || '------';
@@ -478,11 +440,11 @@
             const div = document.createElement('div');
             div.className = `message ${role}`;
             if (type === 'image' && content && content.startsWith('data:image')) {
-                div.innerHTML = `<p><strong>🎨 Сгенерированное изображение:</strong></p><img src="${content}" style="max-width:100%;border-radius:12px;margin-top:8px;">`;
+                div.innerHTML = `<p style="font-size:16px;margin-bottom:10px;"><strong>🎨 Изображение:</strong></p><img src="${content}" style="max-width:100%;border-radius:12px;">`;
             } else if (type === 'video' && content && content.startsWith('http')) {
-                div.innerHTML = `<p><strong>🎬 Видео:</strong></p><video controls width="100%" style="border-radius:12px;"><source src="${content}" type="video/mp4"></video>`;
+                div.innerHTML = `<p style="font-size:16px;"><strong>🎬 Видео:</strong></p><video controls width="100%" style="border-radius:12px;"><source src="${content}" type="video/mp4"></video>`;
             } else {
-                div.innerHTML = `<pre>${content}</pre>`;
+                div.innerHTML = `<div style="font-size:16px;line-height:1.8;white-space:pre-wrap;">${content}</div>`;
             }
             cw.appendChild(div); cw.scrollTop = cw.scrollHeight;
         }
@@ -509,7 +471,7 @@
                 const r = await fetch(`${API_BASE}/payment/create`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-User-ID': currentUser.id }, body: JSON.stringify({ package: selectedPackage, amount: selectedPrice }) });
                 const d = await r.json();
                 if (d.success && d.confirmation_url) { window.location.href = d.confirmation_url; }
-                else { alert(d.error || 'Ошибка оплаты'); }
+                else { alert(d.error || 'Ошибка оплаты. Платёжная система настраивается.'); }
             } catch (e) { alert('Ошибка соединения'); }
             closePaymentModal();
         }
