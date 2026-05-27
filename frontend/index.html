@@ -84,9 +84,17 @@
 </head>
 <body>
     <!-- Анимированные частицы -->
-    <div class="particles">
-        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
-        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particles">
+        <div class="particle" style="left:5%; width:6px; height:6px; background:rgba(56,189,248,0.5); animation-duration:18s;"></div>
+        <div class="particle" style="left:15%; width:8px; height:8px; background:rgba(168,85,247,0.4); animation-duration:22s; animation-delay:1s;"></div>
+        <div class="particle" style="left:25%; width:5px; height:5px; background:rgba(236,72,153,0.4); animation-duration:16s; animation-delay:3s;"></div>
+        <div class="particle" style="left:40%; width:7px; height:7px; background:rgba(34,211,238,0.5); animation-duration:20s; animation-delay:2s;"></div>
+        <div class="particle" style="left:55%; width:6px; height:6px; background:rgba(59,130,246,0.4); animation-duration:19s; animation-delay:4s;"></div>
+        <div class="particle" style="left:70%; width:9px; height:9px; background:rgba(168,85,247,0.5); animation-duration:24s; animation-delay:1.5s;"></div>
+        <div class="particle" style="left:80%; width:5px; height:5px; background:rgba(56,189,248,0.4); animation-duration:17s; animation-delay:3.5s;"></div>
+        <div class="particle" style="left:90%; width:7px; height:7px; background:rgba(236,72,153,0.5); animation-duration:21s; animation-delay:0.5s;"></div>
+        <div class="particle" style="left:35%; width:10px; height:10px; background:rgba(34,211,238,0.3); animation-duration:25s; animation-delay:2.5s;"></div>
+        <div class="particle" style="left:60%; width:8px; height:8px; background:rgba(59,130,246,0.5); animation-duration:23s; animation-delay:5s;"></div>
     </div>
 
     <nav class="navbar" style="z-index: 10; position: relative;">
@@ -400,23 +408,17 @@
             } catch (e) { alert('Сервер загружается. Подождите 30 секунд и попробуйте снова.'); }
         }
 
-        async function updateUI() {
+                async function updateUI() {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('user-section').style.display = 'flex';
             document.getElementById('username-display').textContent = currentUser.name;
             if (currentUser.photo) { const a = document.getElementById('avatar-display'); a.src = currentUser.photo; a.style.display = 'inline-block'; }
-            try {
-                const r = await fetch(`${API_BASE}/credits/check?user_id=${currentUser.id}`);
-                const d = await r.json();
-                if (d.success && d.credits !== undefined) {
-                    currentUser.credits = d.credits;
-                    currentUser.balance = d.balance || 0;
-                    localStorage.setItem('current_user', JSON.stringify(currentUser));
-                }
-            } catch(e) {}
+            
+            // НЕ синхронизируем с сервером — используем только localStorage
             document.getElementById('balance-display').textContent = `${(currentUser.balance || 0).toFixed(0)} ₽`;
             document.getElementById('credits-display').textContent = `${currentUser.credits || 0} кр.`;
             const rc = document.getElementById('referral-code'); if (rc) rc.textContent = currentUser.referral_code || '------';
+        }
         }
 
         async function loadHistory() {
