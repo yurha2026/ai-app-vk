@@ -419,7 +419,6 @@
             document.getElementById('credits-display').textContent = `${currentUser.credits || 0} кр.`;
             const rc = document.getElementById('referral-code'); if (rc) rc.textContent = currentUser.referral_code || '------';
         }
-        }
 
         async function loadHistory() {
             const cw = document.getElementById('chat-window'); cw.innerHTML = '';
