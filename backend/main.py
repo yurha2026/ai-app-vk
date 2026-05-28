@@ -29,20 +29,23 @@ app.add_middleware(
 )
 
 DATABASE = "database.db"
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
-BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
-
-pkce_store = {}
-gigachat_token_cache = {"token": "", "expires": 0}
-
+TURSO_URL = os.getenv("TURSO_URL", "")
+TURSO_TOKEN = os.getenv("TURSO_TOKEN", "")
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DATABASE)
+    if TURSO_URL and TURSO_TOKEN:
+        import libsql_experimental as libsql
+        conn = libsql.connect("local.db", sync_url=TURSO_URL, auth_token=TURSO_TOKEN)
+        conn.sync()
+    else:
+        conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
+        if TURSO_URL and TURSO_TOKEN:
+            conn.sync()
         conn.close()
 
 
