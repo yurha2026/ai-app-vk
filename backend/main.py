@@ -19,10 +19,14 @@ import hmac
 
 load_dotenv()
 
-app = FastAPI(title="AI Assistant Pro", version="2.1.0")
-
+# ВСЕ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ - СНАЧАЛА
+DATABASE = "database.db"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ai-app-vk.vercel.app")
 BACKEND_URL = os.getenv("API_BASE", "https://neuro-guru-backend.onrender.com")
+JSONBIN_KEY = os.getenv("JSONBIN_KEY", "")
+JSONBIN_ID = os.getenv("JSONBIN_ID", "")
+
+app = FastAPI(title="AI Assistant Pro", version="2.1.0")
 
 allowed_origins = [
     FRONTEND_URL,
@@ -43,10 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATABASE = "database.db"
-JSONBIN_KEY = os.getenv("JSONBIN_KEY", "")
-JSONBIN_ID = os.getenv("JSONBIN_ID", "")
-
+# Хранилища
 pkce_store = {}
 gigachat_token_cache = {"token": "", "expires": 0}
 session_store = {}
