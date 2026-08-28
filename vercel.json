@@ -9,7 +9,10 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/static/$1"
+      "dest": "/static/$1",
+      "headers": {
+        "Content-Security-Policy": "frame-ancestors 'self' https://vk.com https://*.vk.com https://*.vk-apps.com https://m.vk.com;"
+      }
     }
   ]
 }
