@@ -81,6 +81,7 @@
         .status-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 </head>
 <body>
     <!-- Анимированные частицы -->
@@ -319,7 +320,59 @@
         let selectedPrice = null;
         const API_BASE = 'https://neuro-guru-backend.onrender.com';
 
+                // Проверка запуска внутри VK Mini App
+        function getVkLaunchParams() {
+            const params = new URLSearchParams(window.location.search);
+            const result = {};
+            for (const [key, value] of params.entries()) {
+                if (key.startsWith('vk_') || key === 'sign') {
+                    result[key] = value;
+                }
+            }
+            return result;
+        }
+
+        async function initVkMiniApp() {
+            const launchParams = getVkLaunchParams();
+            if (!launchParams.vk_user_id || !launchParams.sign) {
+                return false;
+            }
+            try {
+                if (typeof vkBridge !== 'undefined') {
+                    await vkBridge.send('VKWebAppInit');
+                }
+            } catch (e) {
+                console.warn('VK Bridge init warning:', e);
+            }
+            try {
+                const response = await fetch(`${API_BASE}/auth/vk-miniapp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ params: launchParams })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('session_token', data.token);
+                    localStorage.setItem('current_user', JSON.stringify(data.user));
+                    currentUser = data.user;
+                    await updateUI();
+                    await loadHistory();
+                    return true;
+                }
+            } catch (e) {
+                console.error('VK Mini App auth error:', e);
+            }
+            return false;
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
+            // Сначала проверяем — не запущены ли мы внутри VK Mini App
+            const isMiniApp = await initVkMiniApp();
+            if (isMiniApp) {
+                return;
+            }
+
+            // Обычная логика для веб-версии (как было)
             const urlParams = new URLSearchParams(window.location.search);
             const authStatus = urlParams.get('auth');
             const tokenFromUrl = urlParams.get('token');
@@ -408,13 +461,15 @@
             } catch (e) { alert('Сервер загружается. Подождите 30 секунд и попробуйте снова.'); }
         }
 
-                        async function updateUI() {
+                                async function updateUI() {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('user-section').style.display = 'flex';
             document.getElementById('username-display').textContent = currentUser.name;
             if (currentUser.photo) { var a = document.getElementById('avatar-display'); a.src = currentUser.photo; a.style.display = 'inline-block'; }
             try {
-                var r = await fetch(`${API_BASE}/credits/check?user_id=${currentUser.id}`);
+                var r = await fetch(`${API_BASE}/credits/check?user_id=${currentUser.id}`, {
+                    headers: { 'X-User-ID': currentUser.id }
+                });
                 var d = await r.json();
                 if (d.success && d.credits !== undefined) {
                     currentUser.credits = d.credits;
@@ -430,12 +485,15 @@
         async function loadHistory() {
             const cw = document.getElementById('chat-window'); cw.innerHTML = '';
             try {
-                const r = await fetch(`${API_BASE}/chat/history/${currentUser.id}`);
+                const r = await fetch(`${API_BASE}/chat/history`, {
+                    headers: { 'X-User-ID': currentUser.id }
+                });
                 const d = await r.json();
-                d.history.forEach(msg => addMessageToChat(msg.role, msg.content, msg.message_type));
+                if (d.success && d.history) {
+                    d.history.forEach(msg => addMessageToChat(msg.role, msg.content, msg.message_type));
+                }
             } catch (e) {}
         }
-
         async function deductCredits(amount) {
             currentUser.credits -= amount;
             localStorage.setItem('current_user', JSON.stringify(currentUser));
