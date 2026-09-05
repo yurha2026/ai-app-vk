@@ -98,7 +98,8 @@
         <div class="particle" style="left:60%; width:8px; height:8px; background:rgba(59,130,246,0.5); animation-duration:23s; animation-delay:5s;"></div>
     </div>
 
-    <nav class="navbar" style="z-index: 10; position: relative;">
+        <nav class="navbar" style="z-index: 10; position: relative;">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
         <div class="logo logo-glow">🤖 AI Assistant Pro</div>
         <div class="status-online"><div class="status-dot"></div>Онлайн</div>
         <div id="auth-section">
@@ -332,14 +333,19 @@
             return result;
         }
 
-        async function initVkMiniApp() {
+                async function initVkMiniApp() {
             const launchParams = getVkLaunchParams();
             if (!launchParams.vk_user_id || !launchParams.sign) {
                 return false;
             }
-            try {
+            document.body.classList.add('vk-miniapp');
+                        try {
                 if (typeof vkBridge !== 'undefined') {
                     await vkBridge.send('VKWebAppInit');
+                    await vkBridge.send('VKWebAppSetViewSettings', {
+                        status_bar_style: 'dark',
+                        action_bar_color: '#0f172a'
+                    });
                 }
             } catch (e) {
                 console.warn('VK Bridge init warning:', e);
@@ -403,12 +409,15 @@
             }
         });
 
-        function setMode(mode) {
+                function setMode(mode) {
             document.querySelectorAll('.menu-item, .video-item').forEach(item => item.classList.remove('active'));
             event.target.classList.add('active');
             currentMode = mode;
             const warning = document.getElementById('media-warning');
             warning.style.display = (mode === 'image' || mode === 'video') ? 'block' : 'none';
+            if (document.body.classList.contains('vk-miniapp')) {
+                document.body.classList.remove('sidebar-open');
+            }
         }
 
         function showLoading(type) {
