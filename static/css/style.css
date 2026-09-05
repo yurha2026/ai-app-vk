@@ -631,3 +631,60 @@ body.vk-miniapp .chat-window::-webkit-scrollbar-thumb {
     background: var(--border-accent);
     border-radius: 10px;
 }
+
+/* Исправление контраста в открытом мобильном меню */
+body.vk-miniapp.sidebar-open .sidebar {
+    background: #0f172a !important;
+    background-image: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+
+body.vk-miniapp.sidebar-open .sidebar h4 {
+    color: #f1f5f9 !important;
+}
+
+body.vk-miniapp.sidebar-open .sidebar p,
+body.vk-miniapp.sidebar-open .sidebar div {
+    color: #cbd5e1;
+}
+
+body.vk-miniapp.sidebar-open .balance-section,
+body.vk-miniapp.sidebar-open .credits-section,
+body.vk-miniapp.sidebar-open .invite-section,
+body.vk-miniapp.sidebar-open .update-info-box {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+body.vk-miniapp.sidebar-open .update-info-box h4 {
+    color: #f59e0b !important;
+}
+
+body.vk-miniapp.sidebar-open .update-info-box p {
+    color: #fbbf24 !important;
+    opacity: 0.9;
+}
+
+body.vk-miniapp.sidebar-open .menu-item {
+    background: rgba(51, 65, 85, 0.5);
+    margin-bottom: 6px;
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: #f1f5f9 !important;
+}
+
+body.vk-miniapp.sidebar-open .menu-item.active {
+    background: var(--gradient-primary);
+}
+
+body.vk-miniapp.sidebar-open .price-mini {
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+body.vk-miniapp.sidebar-open .mini-name,
+body.vk-miniapp.sidebar-open .mini-price {
+    color: #f1f5f9 !important;
+}
