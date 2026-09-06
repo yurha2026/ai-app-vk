@@ -221,11 +221,12 @@
         <p style="font-size:13px; color:#f59e0b; margin:0;">⚠️ Первый запрос может занять до 60 секунд</p>
     </div>
 
-    <div class="modal-overlay" id="invite-modal">
+        <div class="modal-overlay" id="invite-modal">
         <div class="modal-content">
             <button class="close-modal" onclick="closeModal()">&times;</button>
             <h2 class="modal-title">Пригласи друзей</h2>
-            <p class="modal-subtitle">Получите бонусные кредиты за каждого друга!</p>
+            <p class="modal-subtitle">Получайте % с каждой покупки приглашённого друга!</p>
+            <div id="referral-stats"></div>
             <div class="referral-code-box">
                 <p style="color: var(--text-muted); margin-bottom: 5px;">Ваш код:</p>
                 <div class="referral-code" id="referral-code"></div>
@@ -233,9 +234,9 @@
             <div class="action-buttons">
                 <button onclick="copyReferralLink()" class="primary-btn" style="width:100%;">Копировать ссылку</button>
             </div>
-            <div style="margin-top: 20px; padding: 15px; background: rgba(245, 158, 11, 0.08); border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                <p style="font-size: 12px; color: #f59e0b; font-weight: 600;">🔮 Близится обновление!</p>
-                <p style="font-size: 11px; color: var(--text-light);">Скоро деньги за рефералов можно будет выводить на карту!</p>
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(16, 185, 129, 0.08); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <p style="font-size: 12px; color: #10b981; font-weight: 600;">💰 Как это работает</p>
+                <p style="font-size: 11px; color: var(--text-light);">Заработанные средства зачисляются на ваш баланс автоматически при каждой покупке приглашённого друга.</p>
             </div>
         </div>
     </div>
@@ -351,10 +352,11 @@
                 console.warn('VK Bridge init warning:', e);
             }
             try {
+                                const refCode = localStorage.getItem('pending_ref_code') || null;
                 const response = await fetch(`${API_BASE}/auth/vk-miniapp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ params: launchParams })
+                    body: JSON.stringify({ params: launchParams, ref: refCode })
                 });
                 const data = await response.json();
                 if (data.success) {
@@ -371,8 +373,14 @@
             return false;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Сначала проверяем — не запущены ли мы внутри VK Mini App
+                document.addEventListener('DOMContentLoaded', async () => {
+            const urlParamsRef = new URLSearchParams(window.location.search);
+            const refCode = urlParamsRef.get('ref');
+            if (refCode) {
+                localStorage.setItem('pending_ref_code', refCode);
+            }
+
+            const isMiniApp = await initVkMiniApp();
             const isMiniApp = await initVkMiniApp();
             if (isMiniApp) {
                 return;
@@ -464,9 +472,11 @@
             switch(type) { case 'text': return 1; case 'code': return 2; case 'image': return 3; case 'video': return 30; default: return 1; }
         }
 
-        async function vkLogin() {
+                async function vkLogin() {
             try {
-                const r = await fetch(`${API_BASE}/auth/vk/login`);
+                const refCode = localStorage.getItem('pending_ref_code') || '';
+                const url = refCode ? `${API_BASE}/auth/vk/login?ref=${encodeURIComponent(refCode)}` : `${API_BASE}/auth/vk/login`;
+                const r = await fetch(url);
                 const d = await r.json();
                 window.location.href = d.login_url;
             } catch (e) { alert('Сервер загружается. Подождите 30 секунд и попробуйте снова.'); }
@@ -527,7 +537,40 @@
         }
 
         function logout() { localStorage.removeItem('session_token'); localStorage.removeItem('current_user'); location.reload(); }
-        function openModal() { if (currentUser && currentUser.referral_code) { document.getElementById('invite-modal').classList.add('active'); } else { alert('Войдите в аккаунт!'); } }
+        async function openModal() {
+    if (!currentUser || !currentUser.referral_code) {
+        alert('Войдите в аккаунт!');
+        return;
+    }
+    document.getElementById('invite-modal').classList.add('active');
+    try {
+        const r = await fetch(`${API_BASE}/referrals/stats`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('session_token')}`,
+                'X-User-ID': currentUser.id
+            }
+        });
+        const d = await r.json();
+        if (d.success) {
+            const infoBox = document.getElementById('referral-stats');
+            if (infoBox) {
+                infoBox.innerHTML = `
+                    <div style="display:flex; justify-content:space-around; margin: 15px 0;">
+                        <div style="text-align:center;">
+                            <div style="font-size:24px; font-weight:700; color:#06b6d4;">${d.invited_count}</div>
+                            <div style="font-size:12px; color:var(--text-muted);">Приглашено друзей</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:24px; font-weight:700; color:#10b981;">${d.total_earned.toFixed(0)} ₽</div>
+                            <div style="font-size:12px; color:var(--text-muted);">Заработано</div>
+                        </div>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-muted); text-align:center;">Вы получаете ${d.commission_percent}% с каждой покупки приглашённого друга</p>
+                `;
+            }
+        }
+    } catch (e) { console.error(e); }
+}
         function closeModal() { document.getElementById('invite-modal').classList.remove('active'); }
         document.getElementById('invite-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
         function copyReferralLink() { const l = `${window.location.origin}?ref=${currentUser.referral_code}`; navigator.clipboard.writeText(l).then(() => alert('Ссылка скопирована!')); }

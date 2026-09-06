@@ -28,6 +28,7 @@ JSONBIN_KEY = os.getenv("JSONBIN_KEY", "")
 JSONBIN_ID = os.getenv("JSONBIN_ID", "")
 VK_MINIAPP_SECRET = os.getenv("VK_MINIAPP_SECRET", "")
 VK_SERVICE_TOKEN = os.getenv("VK_SERVICE_TOKEN", "")
+REFERRAL_COMMISSION_PERCENT = float(os.getenv("REFERRAL_COMMISSION_PERCENT", "20"))
 
 app = FastAPI(title="AI Assistant Pro", version="3.0.0")
 
@@ -114,6 +115,10 @@ def create_tables():
             )
             """
         )
+                cursor.execute("PRAGMA table_info(users)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "referred_by" not in columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN referred_by TEXT")
         conn.commit()
 
 
@@ -230,8 +235,76 @@ async def get_current_user(
         return dict(row)
 
 
-def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str) -> dict:
+def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str, ref_code: str = None) -> dict:
+    def get_user_by_referral_code(code: str):
+    if not code:
+        return None
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE referral_code = ?", (code,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def link_referral(referee_id: str, ref_code: str):
+    """Связывает нового пользователя с пригласившим его"""
+    if not ref_code:
+        return
+    referrer = get_user_by_referral_code(ref_code)
+    if not referrer or referrer["id"] == referee_id:
+        return
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT referred_by FROM users WHERE id = ?", (referee_id,))
+        row = cursor.fetchone()
+        if row and row["referred_by"]:
+            return  # уже привязан к кому-то, не перезаписываем
+        cursor.execute(
+            "UPDATE users SET referred_by = ? WHERE id = ?",
+            (referrer["id"], referee_id),
+        )
+        cursor.execute(
+            "INSERT INTO referrals (id, referrer_id, referee_id, reward_amount, status) VALUES (?, ?, ?, 0, 'registered')",
+            (str(uuid.uuid4()), referrer["id"], referee_id),
+        )
+        conn.commit()
+
+
+def reward_referrer_for_purchase(referee_id: str, purchase_amount: float):
+    """Начисляет комиссию пригласившему за покупку приглашённого"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT referred_by FROM users WHERE id = ?", (referee_id,))
+        row = cursor.fetchone()
+        if not row or not row["referred_by"]:
+            return
+        referrer_id = row["referred_by"]
+        commission = round(purchase_amount * REFERRAL_COMMISSION_PERCENT / 100, 2)
+        if commission <= 0:
+            return
+        cursor.execute(
+            "UPDATE users SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+            (commission, referrer_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO referrals (id, referrer_id, referee_id, reward_amount, status)
+            VALUES (?, ?, ?, ?, 'paid')
+            """,
+            (str(uuid.uuid4()), referrer_id, referee_id, commission),
+        )
+        conn.commit()
+
+        cursor.execute("SELECT vk_id FROM users WHERE id = ?", (referrer_id,))
+        r = cursor.fetchone()
+        if r and r["vk_id"]:
+            cloud_user = cloud_get_user(r["vk_id"])
+            if cloud_user:
+                cloud_user["balance"] = cloud_user.get("balance", 0) + commission
+                cloud_save_user(cloud_user)
+      def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str, ref_code: str = None) -> dict:
     """Общая логика создания/обновления пользователя по vk_id"""
+    is_new_user = False
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE vk_id = ?", (vk_user_id,))
@@ -254,6 +327,7 @@ def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str) -> dict
             user_db = dict(cursor.fetchone())
             cloud_save_user(user_db)
         else:
+            is_new_user = True
             cloud_user = cloud_get_user(vk_user_id)
             if cloud_user:
                 uid = cloud_user.get("id") or str(secrets.token_hex(16))
@@ -290,7 +364,10 @@ def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str) -> dict
             user_db = dict(cursor.fetchone())
             cloud_save_user(user_db)
 
-        return user_db
+    if is_new_user and ref_code:
+        link_referral(user_db["id"], ref_code)
+
+    return user_db
 
 
 def verify_vk_signature(params: dict) -> bool:
@@ -455,12 +532,12 @@ async def health():
 
 
 @app.get("/auth/vk/login")
-async def vk_login_url():
+async def vk_login_url(ref: str = None):
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     callback = BACKEND_URL
     code_verifier, code_challenge = generate_pkce()
     state = secrets.token_urlsafe(32)
-    pkce_store[state] = code_verifier
+    pkce_store[state] = {"verifier": code_verifier, "ref": ref}
     login_url = (
         f"https://id.vk.com/authorize?response_type=code&client_id={client_id}"
         f"&redirect_uri={urllib.parse.quote(callback)}&state={state}"
@@ -468,12 +545,17 @@ async def vk_login_url():
     )
     return {"success": True, "login_url": login_url}
 
-
 async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     client_secret = os.getenv("VK_CLIENT_SECRET", "")
     callback = BACKEND_URL
-    code_verifier = pkce_store.pop(state, secrets.token_urlsafe(64))
+        pkce_data = pkce_store.pop(state, None)
+    if pkce_data:
+        code_verifier = pkce_data.get("verifier", secrets.token_urlsafe(64))
+        ref_code = pkce_data.get("ref")
+    else:
+        code_verifier = secrets.token_urlsafe(64)
+        ref_code = None
     try:
         token_resp = requests.post(
             "https://id.vk.com/oauth2/auth",
@@ -508,8 +590,7 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
         if not user_id_vk:
             user_id_vk = int(info.get("user_id") or 0)
 
-        user_db = find_or_create_user_by_vk_id(user_id_vk, name, photo)
-
+                user_db = find_or_create_user_by_vk_id(user_id_vk, name, photo, ref_code)
         token = create_session(user_db["id"])
         uenc = urllib.parse.quote(json.dumps(user_db, default=str, ensure_ascii=False))
         url = f"{FRONTEND_URL}?auth=success&token={token}&userData={uenc}"
@@ -524,6 +605,7 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
 async def vk_miniapp_auth(data: dict):
     """Авторизация внутри VK Mini App через VK Bridge launch params"""
     params = data.get("params", {})
+        ref_code = data.get("ref")
 
     if not verify_vk_signature(params):
         raise HTTPException(status_code=401, detail="Неверная подпись VK")
@@ -555,7 +637,7 @@ async def vk_miniapp_auth(data: dict):
         except Exception as e:
             print(f"[VK_API] Ошибка получения профиля: {e}")
 
-    user_db = find_or_create_user_by_vk_id(vk_user_id, name, photo)
+        user_db = find_or_create_user_by_vk_id(vk_user_id, name, photo, ref_code)
     token = create_session(user_db["id"])
 
     return {"success": True, "user": user_db, "token": token}
@@ -764,6 +846,7 @@ async def payment_webhook(request: Request):
             uid = meta.get("user_id")
             vk = meta.get("vk_id")
             cr = int(meta.get("credits", 0))
+            amount_paid = float((obj.get("amount", {}) or {}).get("value", 0))
             if cr > 0 and uid:
                 with get_db() as conn:
                     c = conn.cursor()
@@ -774,12 +857,42 @@ async def payment_webhook(request: Request):
                         rr = c.fetchone()
                         if rr:
                             cloud_update_credits(vk, int(rr["credits"]))
+
+                if amount_paid > 0:
+                    reward_referrer_for_purchase(uid, amount_paid)
         return {"status": "ok"}
-    except Exception:
+    except Exception as e:
+        print(f"[WEBHOOK] Ошибка: {e}")
         return {"status": "ok"}
 
 
 @app.get("/user/me")
+@app.get("/referrals/stats")
+async def referrals_stats(current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute(
+            "SELECT COUNT(DISTINCT referee_id) as cnt FROM referrals WHERE referrer_id = ?",
+            (uid,),
+        )
+        row = c.fetchone()
+        invited_count = row["cnt"] if row else 0
+
+        c.execute(
+            "SELECT COALESCE(SUM(reward_amount), 0) as total FROM referrals WHERE referrer_id = ? AND status = 'paid'",
+            (uid,),
+        )
+        row2 = c.fetchone()
+        total_earned = float(row2["total"]) if row2 else 0.0
+
+    return {
+        "success": True,
+        "referral_code": current_user.get("referral_code", ""),
+        "invited_count": invited_count,
+        "total_earned": total_earned,
+        "commission_percent": REFERRAL_COMMISSION_PERCENT,
+    }
 async def me(current_user: dict = Depends(get_current_user)):
     return {"success": True, "user": current_user}
 
