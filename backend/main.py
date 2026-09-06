@@ -115,7 +115,7 @@ def create_tables():
             )
             """
         )
-                cursor.execute("PRAGMA table_info(users)")
+        cursor.execute("PRAGMA table_info(users)")
         columns = [row[1] for row in cursor.fetchall()]
         if "referred_by" not in columns:
             cursor.execute("ALTER TABLE users ADD COLUMN referred_by TEXT")
@@ -235,8 +235,7 @@ async def get_current_user(
         return dict(row)
 
 
-def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str, ref_code: str = None) -> dict:
-    def get_user_by_referral_code(code: str):
+def get_user_by_referral_code(code: str):
     if not code:
         return None
     with get_db() as conn:
@@ -258,7 +257,7 @@ def link_referral(referee_id: str, ref_code: str):
         cursor.execute("SELECT referred_by FROM users WHERE id = ?", (referee_id,))
         row = cursor.fetchone()
         if row and row["referred_by"]:
-            return  # уже привязан к кому-то, не перезаписываем
+            return
         cursor.execute(
             "UPDATE users SET referred_by = ? WHERE id = ?",
             (referrer["id"], referee_id),
@@ -302,7 +301,9 @@ def reward_referrer_for_purchase(referee_id: str, purchase_amount: float):
             if cloud_user:
                 cloud_user["balance"] = cloud_user.get("balance", 0) + commission
                 cloud_save_user(cloud_user)
-      def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str, ref_code: str = None) -> dict:
+
+
+def find_or_create_user_by_vk_id(vk_user_id: int, name: str, photo: str, ref_code: str = None) -> dict:
     """Общая логика создания/обновления пользователя по vk_id"""
     is_new_user = False
     with get_db() as conn:
@@ -549,7 +550,7 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
     client_id = os.getenv("VK_CLIENT_ID", "54571690")
     client_secret = os.getenv("VK_CLIENT_SECRET", "")
     callback = BACKEND_URL
-        pkce_data = pkce_store.pop(state, None)
+    pkce_data = pkce_store.pop(state, None)
     if pkce_data:
         code_verifier = pkce_data.get("verifier", secrets.token_urlsafe(64))
         ref_code = pkce_data.get("ref")
@@ -590,7 +591,7 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
         if not user_id_vk:
             user_id_vk = int(info.get("user_id") or 0)
 
-                user_db = find_or_create_user_by_vk_id(user_id_vk, name, photo, ref_code)
+        user_db = find_or_create_user_by_vk_id(user_id_vk, name, photo, ref_code)
         token = create_session(user_db["id"])
         uenc = urllib.parse.quote(json.dumps(user_db, default=str, ensure_ascii=False))
         url = f"{FRONTEND_URL}?auth=success&token={token}&userData={uenc}"
@@ -605,7 +606,7 @@ async def process_vk_auth(code: str, device_id: str = "", state: str = ""):
 async def vk_miniapp_auth(data: dict):
     """Авторизация внутри VK Mini App через VK Bridge launch params"""
     params = data.get("params", {})
-        ref_code = data.get("ref")
+    ref_code = data.get("ref")
 
     if not verify_vk_signature(params):
         raise HTTPException(status_code=401, detail="Неверная подпись VK")
