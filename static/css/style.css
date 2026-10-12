@@ -1,4 +1,4 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+﻿* { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
     --primary: #2563eb;
@@ -579,7 +579,6 @@ body.vk-miniapp .input-area {
 
 body.vk-miniapp #prompt-input {
     min-height: 44px !important;
-    rows: 1;
 }
 
 body.vk-miniapp .welcome-message h1 {
@@ -688,3 +687,4 @@ body.vk-miniapp.sidebar-open .mini-name,
 body.vk-miniapp.sidebar-open .mini-price {
     color: #f1f5f9 !important;
 }
+
